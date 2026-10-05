@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+
+  --color-canvas: #f3efe6;
+  --color-canvas-dark: #0d1014;
+  --color-panel: #fffdf9;
+  --color-panel-dark: #161b21;
+  --color-line: #e4ddd0;
+  --color-line-dark: #2a323c;
+  --color-ink: #1c1917;
+  --color-ink-dark: #e8e4dc;
+  --color-quiet: #6f675e;
+  --color-quiet-dark: #9aa3ad;
+  --color-brand: #0d8a7f;
+  --color-brand-glow: #2dd4bf;
+  --color-live: #16a34a;
+  --color-live-dark: #4ade80;
+  --color-down: #e11d48;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark body {
+  background: var(--color-canvas-dark);
+  color: var(--color-ink-dark);
+}
+
+.bg-dot-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--color-ink) 12%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+}
+
+.dark .bg-dot-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--color-ink-dark) 10%, transparent) 1px,
+    transparent 0
+  );
+}

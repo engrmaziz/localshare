@@ -1,0 +1,22 @@
+{
+  "name": "localshare",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LAN-only text, chat, and file sharing",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c cyan,magenta \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w client",
+    "start": "cross-env NODE_ENV=production npm run start -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3"
+  }
+}
