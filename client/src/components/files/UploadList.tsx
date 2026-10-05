@@ -87,7 +87,7 @@ export function UploadList({ items, onCancel, onRetry, onDismiss }: UploadListPr
                 <button
                   type="button"
                   onClick={() => onCancel(item.id)}
-                  className="rounded p-1 text-quiet hover:text-down dark:text-quiet-dark"
+                  className="inline-flex size-11 items-center justify-center rounded p-1 text-quiet hover:text-down dark:text-quiet-dark"
                   aria-label="Cancel upload"
                 >
                   <X className="size-4" />
@@ -98,7 +98,7 @@ export function UploadList({ items, onCancel, onRetry, onDismiss }: UploadListPr
                   <button
                     type="button"
                     onClick={() => onRetry(item.id)}
-                    className="rounded p-1 text-quiet hover:text-ink dark:text-quiet-dark dark:hover:text-ink-dark"
+                    className="inline-flex size-11 items-center justify-center rounded p-1 text-quiet hover:text-ink dark:text-quiet-dark dark:hover:text-ink-dark"
                     aria-label="Retry upload"
                   >
                     <RotateCcw className="size-4" />
@@ -106,7 +106,7 @@ export function UploadList({ items, onCancel, onRetry, onDismiss }: UploadListPr
                   <button
                     type="button"
                     onClick={() => onDismiss(item.id)}
-                    className="rounded p-1 text-quiet hover:text-down dark:text-quiet-dark"
+                    className="inline-flex size-11 items-center justify-center rounded p-1 text-quiet hover:text-down dark:text-quiet-dark"
                     aria-label="Dismiss"
                   >
                     <X className="size-4" />

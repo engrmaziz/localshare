@@ -7,6 +7,7 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@shared/types";
+import { pinRequired, socketAuthed } from "./pin.ts";
 import { addMessage, getClipboard, getMessages, setClipboard } from "./store.ts";
 
 const RATE_WINDOW_MS = 5_000;
@@ -51,6 +52,14 @@ function ackResult(ack: ((result: ChatAck) => void) | undefined, result: ChatAck
 }
 
 export function attachSockets(io: Io): void {
+  io.use((socket, next) => {
+    if (!pinRequired() || socketAuthed(socket)) {
+      next();
+      return;
+    }
+    next(new Error("PIN required"));
+  });
+
   io.on("connection", (socket: ClientSocket) => {
     socket.emit("chat:history", getMessages());
     socket.emit("clipboard:state", getClipboard());

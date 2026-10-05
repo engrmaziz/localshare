@@ -119,6 +119,17 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
 
   return (
     <div
+      role="region"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
+      aria-label="Drop files here, or press Enter or Space to choose files"
+      onKeyDown={(event) => {
+        if (disabled) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
       onDragOver={onDragOver}

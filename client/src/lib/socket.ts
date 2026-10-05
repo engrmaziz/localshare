@@ -1,11 +1,19 @@
 import { io, type Socket } from "socket.io-client";
 import { useEffect, useState } from "react";
 import type { ClientToServerEvents, ServerToClientEvents } from "@shared/types";
+import { readPinToken } from "./auth.ts";
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io({
-  autoConnect: true,
+  autoConnect: false,
   reconnection: true,
+  withCredentials: true,
 });
+
+export function connectSocket(): void {
+  const token = readPinToken();
+  socket.auth = token ? { token } : {};
+  if (!socket.connected) socket.connect();
+}
 
 export function useSocket() {
   const [connected, setConnected] = useState(socket.connected);
@@ -19,7 +27,6 @@ export function useSocket() {
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("clients:count", onCount);
-    setConnected(socket.connected);
 
     return () => {
       socket.off("connect", onConnect);

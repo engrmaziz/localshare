@@ -37,6 +37,11 @@ export const AUTO_DELETE_HOURS = optionalPositiveNumber(
   process.env.AUTO_DELETE_HOURS,
 );
 
+export const ACCESS_PIN = (() => {
+  const raw = process.env.ACCESS_PIN?.trim();
+  return raw ? raw : undefined;
+})();
+
 export const isProduction =
   process.env.NODE_ENV === "production" || existsSync(CLIENT_DIST);
 

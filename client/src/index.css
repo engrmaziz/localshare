@@ -14,19 +14,19 @@
   --color-line-dark: #2a323c;
   --color-ink: #1c1917;
   --color-ink-dark: #e8e4dc;
-  --color-quiet: #6f675e;
-  --color-quiet-dark: #9aa3ad;
+  --color-quiet: #57524b;
+  --color-quiet-dark: #b7bec6;
   --color-brand: #0d8a7f;
   --color-brand-glow: #2dd4bf;
-  --color-live: #16a34a;
+  --color-live: #15803d;
   --color-live-dark: #4ade80;
-  --color-down: #e11d48;
+  --color-down: #be123c;
 }
 
 html,
 body,
 #root {
-  min-height: 100%;
+  min-height: 100dvh;
 }
 
 body {
@@ -40,6 +40,26 @@ body {
 .dark body {
   background: var(--color-canvas-dark);
   color: var(--color-ink-dark);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.dark :focus-visible {
+  outline-color: var(--color-brand-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .bg-dot-grid {

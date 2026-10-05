@@ -129,6 +129,7 @@ export function uploadFile(
     };
 
     xhr.open("POST", "/api/files");
+    xhr.withCredentials = true;
     xhr.setRequestHeader("x-device-name", deviceName);
     xhr.send(form);
   });
@@ -139,6 +140,7 @@ export function useUploadQueue(deviceName: string) {
   const itemsRef = useRef<UploadItem[]>([]);
   const controllers = useRef(new Map<string, AbortController>());
   const inflight = useRef(0);
+  const pumpRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -165,7 +167,7 @@ export function useUploadQueue(deviceName: string) {
       row.id === next.id ? { ...row, status: "uploading" as const } : row,
     );
     patch(next.id, { status: "uploading", error: undefined });
-    queueMicrotask(pump);
+    queueMicrotask(() => pumpRef.current());
 
     void uploadFile(next.file, {
       deviceName,
@@ -194,9 +196,13 @@ export function useUploadQueue(deviceName: string) {
       .finally(() => {
         controllers.current.delete(next.id);
         inflight.current = Math.max(0, inflight.current - 1);
-        queueMicrotask(pump);
+        queueMicrotask(() => pumpRef.current());
       });
   }, [deviceName, patch]);
+
+  useEffect(() => {
+    pumpRef.current = pump;
+  }, [pump]);
 
   useEffect(() => {
     pump();

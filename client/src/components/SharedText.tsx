@@ -8,7 +8,7 @@ import {
 } from "react";
 import { MAX_CLIPBOARD_BYTES, type ClipboardState } from "@shared/types";
 import { pasteShortcutHint, readClipboard, writeClipboard } from "../lib/clipboard.ts";
-import { socket } from "../lib/socket.ts";
+import { socket, useSocket } from "../lib/socket.ts";
 import { useToast } from "../lib/toast.tsx";
 
 const EMIT_MS = 300;
@@ -38,6 +38,7 @@ function syncedLabel(at: number | null, now: number): string {
 
 export function SharedText() {
   const { toast } = useToast();
+  const { connected } = useSocket();
   const [text, setText] = useState("");
   const [copied, setCopied] = useState(false);
   const [syncedAt, setSyncedAt] = useState<number | null>(null);
@@ -52,6 +53,7 @@ export function SharedText() {
   const emitTimer = useRef<number | null>(null);
   const flushTimer = useRef<number | null>(null);
   const selectionRef = useRef<{ start: number; end: number } | null>(null);
+  const scheduleQueuedApplyRef = useRef<() => void>(() => undefined);
 
   const markSynced = useCallback((at = Date.now()) => {
     setSyncedAt(at);
@@ -86,13 +88,17 @@ export function SharedText() {
       const busy =
         focusedRef.current && Date.now() - lastTypedAt.current < TYPING_GRACE_MS;
       if (busy) {
-        scheduleQueuedApply();
+        scheduleQueuedApplyRef.current();
         return;
       }
       const pending = pendingRemote.current;
       if (pending) applyRemote(pending);
     }, wait + 16);
   }, [applyRemote]);
+
+  useEffect(() => {
+    scheduleQueuedApplyRef.current = scheduleQueuedApply;
+  }, [scheduleQueuedApply]);
 
   const emitUpdate = useCallback(
     (next: string, immediate = false) => {
@@ -208,7 +214,8 @@ export function SharedText() {
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-canvas dark:border-line-dark dark:hover:bg-canvas-dark"
+            disabled={!connected}
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-canvas disabled:opacity-50 dark:border-line-dark dark:hover:bg-canvas-dark"
           >
             <Copy className="size-3.5" />
             {copied ? "Copied" : "Copy"}
@@ -216,7 +223,8 @@ export function SharedText() {
           <button
             type="button"
             onClick={handlePaste}
-            className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-canvas dark:border-line-dark dark:hover:bg-canvas-dark"
+            disabled={!connected}
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-canvas disabled:opacity-50 dark:border-line-dark dark:hover:bg-canvas-dark"
           >
             <ClipboardPaste className="size-3.5" />
             Paste
@@ -224,7 +232,8 @@ export function SharedText() {
           <button
             type="button"
             onClick={handleClear}
-            className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-canvas dark:border-line-dark dark:hover:bg-canvas-dark"
+            disabled={!connected}
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:bg-canvas disabled:opacity-50 dark:border-line-dark dark:hover:bg-canvas-dark"
           >
             <Eraser className="size-3.5" />
             Clear
@@ -251,8 +260,13 @@ export function SharedText() {
           }
         }}
         onChange={(e) => setLocalText(e.target.value)}
-        placeholder="Type here — it appears on every connected device."
-        className="mt-4 min-h-[160px] flex-1 resize-y rounded-xl border border-line bg-canvas px-3 py-2.5 font-sans text-sm leading-relaxed outline-none focus:border-brand dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow"
+        disabled={!connected}
+        placeholder={
+          connected
+            ? "Type here — it appears on every connected device."
+            : "Disconnected — reconnecting…"
+        }
+        className="mt-4 min-h-[160px] flex-1 resize-y rounded-xl border border-line bg-canvas px-3 py-2.5 font-sans text-base leading-relaxed outline-none focus:border-brand disabled:opacity-60 dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow"
       />
 
       <div className="mt-2 flex items-center justify-between text-[11px] text-quiet dark:text-quiet-dark">

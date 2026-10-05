@@ -2,6 +2,7 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 import type { Express, NextFunction, Request, Response } from "express";
 import multer, { MulterError } from "multer";
+import { rateLimit } from "express-rate-limit";
 import { nanoid } from "nanoid";
 import type { Server } from "socket.io";
 import type {
@@ -58,6 +59,14 @@ const upload = multer({
   limits: {
     fileSize: MAX_FILE_SIZE_BYTES ?? Infinity,
   },
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many uploads, try again in a minute" },
 });
 
 function uploadPaths(req: Request): string[] {
@@ -202,6 +211,7 @@ export function registerFileRoutes(app: Express, io: Io): void {
 
   app.post(
     "/api/files",
+    uploadLimiter,
     keepSocketAlive,
     (req, res, next) => {
       const disarmAbort = attachAbortCleanup(req);

@@ -78,7 +78,7 @@ export function truncateUtf8(text: string, maxBytes: number): string {
 
 ensureDataDirs();
 
-let state = loadState();
+const state = loadState();
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let writing: Promise<void> = Promise.resolve();
 

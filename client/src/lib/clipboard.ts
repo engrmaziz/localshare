@@ -16,14 +16,13 @@ export async function writeClipboard(text: string): Promise<boolean> {
   el.style.left = "-9999px";
   document.body.appendChild(el);
   el.select();
-  let ok = false;
   try {
-    ok = document.execCommand("copy");
+    return document.execCommand("copy");
   } catch {
-    ok = false;
+    return false;
+  } finally {
+    document.body.removeChild(el);
   }
-  document.body.removeChild(el);
-  return ok;
 }
 
 export async function readClipboard(): Promise<string | null> {

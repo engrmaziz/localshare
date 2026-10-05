@@ -47,7 +47,10 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
     }
     setBusy(true);
     try {
-      const res = await fetch(`/api/files/${file.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/files/${file.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       if (!res.ok && res.status !== 204) {
         throw new Error("Delete failed");
       }
@@ -67,6 +70,7 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
             type="button"
             onClick={onPreview}
             className="size-full"
+            aria-label={`Preview ${file.originalName}`}
             title="Open preview"
           >
             <img
@@ -105,7 +109,7 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
           <a
             href={downloadUrl}
             download={file.originalName}
-            className="inline-flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-medium hover:bg-panel dark:border-line-dark dark:hover:bg-panel-dark"
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-medium hover:bg-panel dark:border-line-dark dark:hover:bg-panel-dark"
           >
             <Download className="size-3" />
             Download
@@ -113,7 +117,7 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
           <button
             type="button"
             onClick={copyLink}
-            className="inline-flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-medium hover:bg-panel dark:border-line-dark dark:hover:bg-panel-dark"
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-medium hover:bg-panel dark:border-line-dark dark:hover:bg-panel-dark"
           >
             {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
             {copied ? "Copied" : "Copy link"}
@@ -123,7 +127,7 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
               href={rawUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-medium hover:bg-panel dark:border-line-dark dark:hover:bg-panel-dark"
+              className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-medium hover:bg-panel dark:border-line-dark dark:hover:bg-panel-dark"
             >
               <ExternalLink className="size-3" />
               Open
@@ -136,7 +140,7 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
             onBlur={() => {
               if (!busy) setConfirming(false);
             }}
-            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium ${
+            className={`inline-flex min-h-11 items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium ${
               confirming
                 ? "border-down bg-down text-white"
                 : "border-line hover:bg-panel dark:border-line-dark dark:hover:bg-panel-dark"

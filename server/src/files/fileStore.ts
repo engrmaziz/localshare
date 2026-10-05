@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
 import { rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { FileMeta } from "@shared/types";
@@ -105,7 +105,7 @@ function reconcile(): void {
   try {
     orphans = readdirSync(UPLOAD_DIR);
   } catch {
-    orphans = [];
+    /* keep empty */
   }
   for (const name of orphans) {
     if (name.endsWith(".tmp")) continue;
@@ -115,6 +115,35 @@ function reconcile(): void {
   }
 
   if (dropped) scheduleSave();
+  cleanupStaleUploads(known);
+}
+
+const STALE_MS = 60 * 60 * 1000;
+
+function cleanupStaleUploads(known: Set<string>): void {
+  let names: string[];
+  try {
+    names = readdirSync(UPLOAD_DIR);
+  } catch {
+    return;
+  }
+  const cutoff = Date.now() - STALE_MS;
+  for (const name of names) {
+    const diskPath = path.join(UPLOAD_DIR, name);
+    const resolved = path.resolve(diskPath);
+    const rel = path.relative(path.resolve(UPLOAD_DIR), resolved);
+    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) continue;
+    const fragment = name.endsWith(".tmp") || !known.has(name);
+    if (!fragment) continue;
+    try {
+      const age = statSync(resolved).mtimeMs;
+      if (age > cutoff) continue;
+      unlinkSync(resolved);
+      console.warn(`Removed stale upload fragment: ${name}`);
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 reconcile();

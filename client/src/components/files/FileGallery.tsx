@@ -30,7 +30,7 @@ export function FileGallery({ onError }: FileGalleryProps) {
 
     async function load() {
       try {
-        const res = await fetch("/api/files");
+        const res = await fetch("/api/files", { credentials: "include" });
         if (!res.ok) throw new Error("list failed");
         const body = (await res.json()) as FileMeta[];
         if (!cancelled) setFiles(Array.isArray(body) ? body : []);
@@ -101,13 +101,13 @@ export function FileGallery({ onError }: FileGalleryProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by name"
-            className="w-full rounded-lg border border-line bg-canvas py-1.5 pl-7 pr-2 text-xs outline-none focus:border-brand dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow"
+            className="w-full min-h-11 rounded-lg border border-line bg-canvas py-2 pl-7 pr-2 text-base outline-none focus:border-brand dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow sm:min-h-0 sm:py-1.5 sm:text-xs"
           />
         </label>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
-          className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-xs outline-none dark:border-line-dark dark:bg-canvas-dark"
+          className="min-h-11 rounded-lg border border-line bg-canvas px-2 py-1.5 text-base outline-none dark:border-line-dark dark:bg-canvas-dark sm:min-h-0 sm:text-xs"
           aria-label="Sort files"
         >
           <option value="newest">Newest</option>

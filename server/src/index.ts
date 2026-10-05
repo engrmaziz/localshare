@@ -1,7 +1,9 @@
 import { createServer } from "node:http";
 import path from "node:path";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import helmet from "helmet";
 import { Server as SocketIOServer } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "@shared/types";
 import {
@@ -10,12 +12,15 @@ import {
   ensureDataDirs,
   isProduction,
 } from "./config.ts";
+import { jsonErrorHandler, installProcessGuards } from "./errors.ts";
+import { flushFileStore } from "./files/fileStore.ts";
+import { registerFileRoutes, startFileRetention } from "./files/routes.ts";
 import { getLanAddresses, getPrimaryIp } from "./network.ts";
+import { pinGuard, registerAuthRoutes } from "./pin.ts";
 import { attachSockets } from "./sockets.ts";
 import { flushStore } from "./store.ts";
-import { registerFileRoutes, startFileRetention } from "./files/routes.ts";
-import { flushFileStore } from "./files/fileStore.ts";
 
+installProcessGuards();
 ensureDataDirs();
 
 const app = express();
@@ -28,16 +33,42 @@ httpServer.keepAliveTimeout = 65_000;
 const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(
   httpServer,
   {
-    cors: { origin: true },
+    cors: { origin: true, credentials: true },
   },
 );
 
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: "2mb" }));
+app.use(
+  helmet({
+    hsts: false,
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        mediaSrc: ["'self'"],
+        connectSrc: ["'self'", "ws:", "wss:"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        upgradeInsecureRequests: null,
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser());
+app.use(express.json({ limit: "100kb" }));
+app.use(pinGuard);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+registerAuthRoutes(app);
 
 app.get("/api/info", (_req, res) => {
   const ips = getLanAddresses();
@@ -78,6 +109,8 @@ if (isProduction) {
     });
   });
 }
+
+app.use(jsonErrorHandler);
 
 function printBanner(): void {
   const primaryIp = getPrimaryIp();

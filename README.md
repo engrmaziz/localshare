@@ -1,124 +1,93 @@
 # LocalShare
 
-LAN-only web app for sharing text, chat, and files between devices on the same Wi-Fi. No cloud, no accounts — traffic stays on your network.
+LAN-only web app for sharing **text**, **chat**, and **files** between phones, laptops, and tablets on the same Wi-Fi. No cloud, no accounts — traffic stays on your network.
 
-Phase 1 is the scaffold and UI shell. Phase 2 is chat and shared text. Phase 3 is the file storage API (UI in a later phase).
+## Features
+
+- Shared text pad that stays in sync across every connected device
+- Simple LAN chat with device names, link detection, and copy
+- Drag-and-drop file sharing (photos, videos, zips) with live progress
+- QR code + copy/share URL so a phone can join without typing an IP
+- Dark/light theme, mobile tab layout, and Add to Home Screen support
+- Optional access PIN (`ACCESS_PIN`) for a light lock on a trusted LAN
+- Persistence across server restarts (chat, clipboard, files on disk)
+
+## Screenshots
+
+_Add screenshots of the desktop layout, mobile tabs, and QR connect card here._
 
 ## Prerequisites
 
 - Node.js 20 or newer
 - Devices on the same local network (same Wi-Fi / LAN)
 
-## Setup
+## Quick start
 
 ```bash
 npm install
-```
-
-Optional: copy `.env.example` to `.env` and change ports if the defaults are taken. Defaults live only in `.env.example` (and as fallbacks in server/client config):
-
-- `PORT` — API and production server
-- `CLIENT_PORT` — Vite dev client
-
-## Development
-
-```bash
-npm run dev
-```
-
-This starts the API server and the Vite client together.
-
-- On this machine: open the Local URL printed in the server banner (and the Vite URL for the client).
-- On a phone on the same Wi-Fi: open `http://<LAN-IP>:<CLIENT_PORT>` (the Network URL, using the client port).
-
-The client proxies `/api`, `/files`, and `/socket.io` to the server.
-
-## Production
-
-```bash
 npm run build
 npm start
 ```
 
-The server serves the built client and the API from `PORT` (bind address `0.0.0.0`).
+Then open the Network URL printed in the terminal on this computer, and scan the QR code from a phone on the same Wi-Fi.
 
-- On this machine: `http://localhost:<PORT>`
-- On a phone: `http://<LAN-IP>:<PORT>`
+For day-to-day development (API on `PORT`, Vite UI on `CLIENT_PORT`):
 
-Open the app on two devices (or two browser tabs) and the header should show **2 devices connected**.
+```bash
+npm install
+npm run dev
+```
+
+The Vite client proxies `/api`, `/files`, and `/socket.io` to the server. The connect QR always uses **the port the page is served from**, so a phone scanning during `npm run dev` hits the UI (default 7422), not the API port.
+
+Optional: copy `.env.example` to `.env`. Defaults live in `.env.example` and as fallbacks in code.
+
+## Environment variables
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `PORT` | `7421` | API and production server (binds `0.0.0.0`) |
+| `CLIENT_PORT` | `7422` | Vite dev client only |
+| `UPLOAD_DIR` | `../data/uploads` | Where uploaded files are stored (relative to `server/`) |
+| `DATA_DIR` | `../data` | Chat, clipboard, and file metadata JSON |
+| `MAX_FILE_SIZE_MB` | unset (unlimited) | Reject larger uploads with HTTP 413 |
+| `AUTO_DELETE_HOURS` | unset (keep forever) | Delete files older than this (checked every 10 minutes) |
+| `ACCESS_PIN` | unset | If set, require this PIN before REST, files, and Socket.io |
 
 ## Firewall
 
-Node must accept inbound connections on your private network, or other devices cannot load the app.
+Node must accept inbound connections on your **private** network, or phones cannot load the app.
 
-**Windows:** when Windows Defender Firewall prompts, allow Node.js on **private** networks. If it never prompted: Windows Security → Firewall & network protection → Allow an app through firewall → enable Node.js for Private networks.
+**Windows:** when Windows Defender Firewall prompts, allow Node.js on **private** networks. If it never prompted: Windows Security → Firewall & network protection → Allow an app through firewall → enable Node.js for Private. Also allow TCP port `7421` (and `7422` when developing).
 
-**macOS:** System Settings → Network → Firewall → allow incoming for Node.
+**macOS:** System Settings → Network → Firewall → allow incoming for Node. If you use `pf` or a third-party firewall, allow TCP `7421` on the LAN interface.
 
-**Linux:** allow TCP on `PORT` / `CLIENT_PORT` for your LAN interface (for example `ufw allow from 192.168.0.0/16 to any port <PORT>`).
+**Linux:** allow TCP on `PORT` (and `CLIENT_PORT` in dev) for your LAN, for example:
+
+```bash
+sudo ufw allow from 192.168.0.0/16 to any port 7421
+```
 
 If the phone cannot connect but the PC can, the firewall is the usual cause.
 
-## Busy ports
+## Troubleshooting
 
-If a port is already in use, the server prints `Port <PORT> is busy. Set PORT in .env` and exits. It does not pick another port automatically. Set `PORT` / `CLIENT_PORT` in `.env` instead.
+- **AP/client isolation:** many routers isolate Wi-Fi clients from each other. Turn off “AP isolation”, “client isolation”, or “guest network” for the SSID you are using.
+- **VPN:** a VPN can hide the LAN IP LocalShare detects, or block device-to-device traffic. Disconnect the VPN on the host (and often the phone) or pick another address from **Not working? Try another network address**.
+- **Wrong IP:** laptops with Ethernet + Wi-Fi + virtual adapters may advertise the wrong address. Use the dropdown on the Connect card.
+- **Port already in use:** the server prints `Port <PORT> is busy. Set PORT in .env` and exits. It does not pick another port. Change `PORT` / `CLIENT_PORT` in `.env`.
+- **QR opens the API, not the UI:** in development the UI is on `CLIENT_PORT`. The QR uses `window.location.port` so it should match the page you opened. Prefer scanning from the Vite URL, not `localhost:7421`.
+- **Disconnected / PIN loop:** if `ACCESS_PIN` is set, unlock once; cookies and the socket handshake both need that PIN.
 
-## File API (Phase 3)
+## Security note
 
-Uploads stream straight to disk (`multer.diskStorage`). There is no in-memory buffer of the file, so a multi-GB video uses roughly constant Node heap. Optional env vars (see `.env.example`):
+LocalShare is designed for **trusted local networks**. It is not meant to be exposed to the internet. There is no multi-user permission model. Anyone who can reach the server on the LAN can read chat, the shared pad, and files (unless you set `ACCESS_PIN`, which is a simple shared secret — not a substitute for a firewall or VPN).
 
-- `MAX_FILE_SIZE_MB` — reject larger uploads with HTTP 413. Unset = unlimited.
-- `AUTO_DELETE_HOURS` — delete files older than this (checked every 10 minutes). Unset = keep forever.
+## End-to-end checklist
 
-Replace `FILE_ID` with an `id` from the upload or list response. Examples assume the default `PORT=7421`.
-
-### Upload a small file
-
-```bash
-curl -sS -X POST http://localhost:7421/api/files \
-  -H "x-device-name: Curl-Tester" \
-  -F "files=@./README.md"
-```
-
-### Upload a large file (~2 GB)
-
-```bash
-dd if=/dev/zero of=big.bin bs=1M count=2048
-curl -sS -X POST http://localhost:7421/api/files \
-  -H "x-device-name: Curl-Tester" \
-  -F "files=@./big.bin"
-```
-
-Windows (PowerShell) equivalent of `dd`:
-
-```powershell
-fsutil file createnew big.bin 2147483648
-curl.exe -sS -X POST http://localhost:7421/api/files -H "x-device-name: Curl-Tester" -F "files=@big.bin"
-```
-
-### List and storage usage
-
-```bash
-curl -sS http://localhost:7421/api/files
-curl -sS http://localhost:7421/api/storage
-```
-
-### Range request, download, inline/raw, delete
-
-```bash
-curl -sS -D - -o first100.bin -r 0-99 http://localhost:7421/files/FILE_ID/download
-curl -sS -o restored.bin http://localhost:7421/files/FILE_ID/download
-curl -sS -D - -o raw.bin http://localhost:7421/files/FILE_ID/raw
-curl -sS -D - -X DELETE http://localhost:7421/api/files/FILE_ID
-```
-
-Multiple files in one request: repeat `-F "files=@./another.bin"`.
-
-### Why memory stays flat on a 2 GB upload
-
-- `diskStorage` pipes each multipart file stream to `fs.createWriteStream` (chunked; never `memoryStorage` / `file.buffer`).
-- The JSON body parser is not used for multipart, so Express does not load the upload into RAM.
-- `server.requestTimeout = 0` so a slow phone-over-Wi-Fi transfer is not killed mid-stream.
-- Only small JSON metadata (`files.json`) is kept in memory.
-
-OS file cache may grow; that is the kernel, not the Node heap (`process.memoryUsage().heapUsed`).
+- [ ] Scan the QR with a phone on the same Wi-Fi and confirm the app loads
+- [ ] Send text in the shared pad and see it on the other device
+- [ ] Send a chat message both ways
+- [ ] Upload a photo from the phone; confirm it appears on the laptop
+- [ ] Upload a large video from the phone; download it on the laptop
+- [ ] Restart the server (`Ctrl+C`, then `npm start`) and confirm chat, pad, and files are still there

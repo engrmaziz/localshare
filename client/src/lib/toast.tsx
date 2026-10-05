@@ -34,7 +34,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4"
+        style={{
+          bottom: "calc(4.75rem + env(safe-area-inset-bottom) + var(--kb-inset, 0px))",
+        }}
         aria-live="polite"
       >
         {toasts.map((item) => (

@@ -49,10 +49,6 @@ function DeviceNameEditor({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setDraft(name);
-  }, [name]);
-
-  useEffect(() => {
     if (editing) inputRef.current?.select();
   }, [editing]);
 
@@ -65,9 +61,13 @@ function DeviceNameEditor({
     return (
       <button
         type="button"
-        onClick={() => setEditing(true)}
-        className="inline-flex max-w-[11rem] items-center gap-1 truncate rounded-full border border-line px-2 py-0.5 text-[11px] text-quiet hover:text-ink dark:border-line-dark dark:text-quiet-dark dark:hover:text-ink-dark"
+        onClick={() => {
+          setDraft(name);
+          setEditing(true);
+        }}
+        className="inline-flex min-h-11 max-w-[11rem] items-center gap-1 truncate rounded-full border border-line px-2 py-0.5 text-[11px] text-quiet hover:text-ink dark:border-line-dark dark:text-quiet-dark dark:hover:text-ink-dark"
         title="Rename this device"
+        aria-label={`Rename this device, currently ${name}`}
       >
         <Pencil className="size-3 shrink-0" />
         <span className="truncate">{name}</span>
@@ -92,7 +92,7 @@ function DeviceNameEditor({
           setEditing(false);
         }
       }}
-      className="w-36 rounded-full border border-brand bg-canvas px-2 py-0.5 text-[11px] outline-none dark:bg-canvas-dark"
+      className="h-11 w-36 rounded-full border border-brand bg-canvas px-2 text-base outline-none dark:bg-canvas-dark"
       aria-label="Device name"
     />
   );
@@ -141,8 +141,8 @@ function ChatBubble({
           <button
             type="button"
             onClick={copy}
-            className={`rounded p-0.5 opacity-70 hover:opacity-100 ${own ? "text-white" : "text-quiet dark:text-quiet-dark"}`}
-            title="Copy message"
+            className={`inline-flex size-8 items-center justify-center rounded p-0.5 opacity-70 hover:opacity-100 ${own ? "text-white" : "text-quiet dark:text-quiet-dark"}`}
+            aria-label={copied ? "Copied" : "Copy message"}
           >
             {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
           </button>
@@ -273,6 +273,8 @@ export function ChatPanel() {
       <div
         ref={scrollerRef}
         onScroll={onScroll}
+        aria-live="polite"
+        aria-label="Chat messages"
         className="mt-4 flex min-h-[180px] flex-1 flex-col gap-2 overflow-y-auto rounded-xl border border-line bg-canvas/60 p-3 dark:border-line-dark dark:bg-canvas-dark/40"
       >
         {messages.length === 0 ? (
@@ -300,12 +302,12 @@ export function ChatPanel() {
           rows={1}
           maxLength={MAX_CHAT_TEXT}
           placeholder={connected ? "Message… Enter to send" : "Disconnected"}
-          className="max-h-28 min-h-[42px] flex-1 resize-none rounded-xl border border-line bg-canvas px-3 py-2.5 text-sm outline-none focus:border-brand disabled:opacity-60 dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow"
+          className="max-h-28 min-h-11 flex-1 resize-none rounded-xl border border-line bg-canvas px-3 py-2.5 text-base outline-none focus:border-brand disabled:opacity-60 dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow"
         />
         <button
           type="submit"
           disabled={!connected || !draft.trim()}
-          className="inline-flex size-[42px] shrink-0 items-center justify-center rounded-xl bg-brand text-white transition hover:opacity-90 disabled:opacity-40"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand text-white transition hover:opacity-90 disabled:opacity-40"
           aria-label="Send"
         >
           <Send className="size-4" />

@@ -88,7 +88,7 @@ export function Lightbox({ images, index, onClose, onIndex }: LightboxProps) {
         <button
           type="button"
           onClick={onClose}
-          className="absolute -right-2 -top-2 rounded-full bg-black/70 p-2 text-white"
+          className="absolute -right-2 -top-2 inline-flex size-11 items-center justify-center rounded-full bg-black/70 text-white"
           aria-label="Close preview"
         >
           <X className="size-4" />
@@ -98,7 +98,7 @@ export function Lightbox({ images, index, onClose, onIndex }: LightboxProps) {
             <button
               type="button"
               onClick={() => onIndex((index - 1 + images.length) % images.length)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full bg-black/70 p-2 text-white"
+              className="absolute left-0 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white"
               aria-label="Previous image"
             >
               <ChevronLeft className="size-5" />
@@ -106,7 +106,7 @@ export function Lightbox({ images, index, onClose, onIndex }: LightboxProps) {
             <button
               type="button"
               onClick={() => onIndex((index + 1) % images.length)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full bg-black/70 p-2 text-white"
+              className="absolute right-0 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/70 text-white"
               aria-label="Next image"
             >
               <ChevronRight className="size-5" />
