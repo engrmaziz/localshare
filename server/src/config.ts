@@ -12,7 +12,10 @@ dotenv.config({ path: path.join(REPO_ROOT, ".env") });
 const DEFAULT_PORT = 7421;
 
 export const PORT = Number(process.env.PORT) || DEFAULT_PORT;
-export const DATA_DIR = path.resolve(SERVER_ROOT, process.env.DATA_DIR ?? "../data");
+export const DATA_DIR = path.resolve(
+  SERVER_ROOT,
+  process.env.DATA_DIR ?? "../data",
+);
 export const UPLOAD_DIR = path.resolve(
   SERVER_ROOT,
   process.env.UPLOAD_DIR ?? "../data/uploads",

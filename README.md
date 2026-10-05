@@ -108,6 +108,61 @@ If the phone cannot connect but the PC can, the firewall is the usual cause.
 - **QR opens the API, not the UI:** in development the UI is on `CLIENT_PORT`. The QR uses `window.location.port` so it should match the page you opened. Prefer scanning from the Vite URL, not `localhost:7421`.
 - **Login loop / 401:** enter the 32-character key from the server banner (or `data/access.key`). After `npm run key:rotate`, restart the server and log in again.
 
+## Deploy and run
+
+Production serves the built client from `client/dist` on **port 7421**, bound to `0.0.0.0` (all interfaces). Data lives in the repo `data/` folder (absolute path, never inside `client/dist`).
+
+```bash
+npm run deploy      # npm ci, build client, start/reload PM2
+npm run urls        # print LAN URLs, mDNS hint, access-key file path
+npm run status      # pm2 status
+npm run logs        # last 50 log lines
+npm run restart
+npm run stop
+```
+
+**Update after `git pull`:** `npm run deploy`
+
+**Change port:** edit `PORT` in `.env`, update the firewall rule to the new TCP port, then `npm run restart`.
+
+**Rotate the access key:** `npm run key:rotate`, then `npm run restart`.
+
+**Back up:** copy the `data/` directory (chat, clipboard, `files.json`, uploads, `access.key`, `sessions.json`).
+
+**Keep the LAN IP stable (do this in the router, not on this PC):**
+
+1. Note this machine's current IPv4 and MAC (Windows: `Get-NetAdapter` + `Get-NetIPAddress -AddressFamily IPv4`).
+2. Open the router admin page (often `http://192.168.1.1` or `http://192.168.0.1`).
+3. Find DHCP reservation / static lease and bind that MAC to the current IP.
+4. Reboot the PC or renew DHCP so the lease sticks. A static IP on the NIC also works; a router reservation is easier to undo.
+
+PM2 logs go to `logs/out.log` and `logs/error.log`. Rotate or truncate those files if they grow large (for example stop the app, zip `logs/`, start again). Optional: `npx pm2 install pm2-logrotate` if you want automatic rotation.
+
+Windows autostart (current user, no admin):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\install-autostart.ps1
+npx pm2 save
+```
+
+For a task that runs with highest privileges, use an elevated PowerShell and add `-Highest`.
+
+Open TCP 7421 on Private/Domain only (elevated PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\windows\open-firewall.ps1
+```
+
+The Ethernet profile on this machine is already **Private**. If a phone cannot connect and `Get-NetConnectionProfile` shows Public, switch it only on a trusted LAN:
+
+```powershell
+Set-NetConnectionProfile -InterfaceAlias "Ethernet 2" -NetworkCategory Private
+```
+
+### Do not expose to the internet
+
+Do **not** add a router port-forward, UPnP mapping, or tunnel (ngrok, Cloudflare, Tailscale Funnel, etc.) to this app. It is HTTP-only, uses a shared access key, and is meant for a **trusted LAN**. Opening it to the internet would expose chat, files, and session cookies.
+
 ## End-to-end checklist
 
 - [ ] Fresh start: console prints a 32-character key; `data/access.key` exists

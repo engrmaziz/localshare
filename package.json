@@ -16,7 +16,13 @@
     "start": "cross-env NODE_ENV=production npm run start -w server",
     "lint": "eslint .",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
-    "key:rotate": "npm run key:rotate -w server"
+    "key:rotate": "npm run key:rotate -w server",
+    "deploy": "npm ci && npm run build && pm2 startOrReload ecosystem.config.cjs --env production",
+    "stop": "pm2 stop localshare",
+    "restart": "pm2 restart localshare",
+    "logs": "pm2 logs localshare --lines 50",
+    "status": "pm2 status",
+    "urls": "npm run urls -w server"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -26,6 +32,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
-    "typescript-eslint": "^8.71.0"
+    "typescript-eslint": "^8.71.0",
+    "pm2": "^6.0.8"
   }
 }

@@ -9,3 +9,4 @@ data/sessions.json
 Thumbs.db
 *.tsbuildinfo
 .vite
+logs/

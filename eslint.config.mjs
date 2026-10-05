@@ -11,6 +11,8 @@ export default tseslint.config(
       "**/node_modules/**",
       "data/**",
       "client/public/theme.js",
+      "ecosystem.config.cjs",
+      "scripts/**",
     ],
   },
   js.configs.recommended,
