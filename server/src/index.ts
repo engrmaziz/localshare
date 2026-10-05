@@ -1,14 +1,18 @@
 import { createServer } from "node:http";
 import path from "node:path";
-import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { Server as SocketIOServer } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "@shared/types";
+import { loadAccessKey } from "./auth/accessKey.ts";
+import { requireAuth } from "./auth/middleware.ts";
+import { registerAuthRoutes } from "./auth/routes.ts";
+import { flushSessions, startSessionMaintenance } from "./auth/sessions.ts";
 import {
   CLIENT_DIST,
   PORT,
+  PRINT_KEY,
   ensureDataDirs,
   isProduction,
 } from "./config.ts";
@@ -16,12 +20,13 @@ import { jsonErrorHandler, installProcessGuards } from "./errors.ts";
 import { flushFileStore } from "./files/fileStore.ts";
 import { registerFileRoutes, startFileRetention } from "./files/routes.ts";
 import { getLanAddresses, getPrimaryIp } from "./network.ts";
-import { pinGuard, registerAuthRoutes } from "./pin.ts";
 import { attachSockets } from "./sockets.ts";
 import { flushStore } from "./store.ts";
 
 installProcessGuards();
 ensureDataDirs();
+const accessKeyForBanner = loadAccessKey();
+startSessionMaintenance();
 
 const app = express();
 const httpServer = createServer(app);
@@ -60,15 +65,20 @@ app.use(
   }),
 );
 app.use(cors({ origin: true, credentials: true }));
-app.use(cookieParser());
 app.use(express.json({ limit: "100kb" }));
-app.use(pinGuard);
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    res.setHeader("Cache-Control", "no-store");
+  }
+  next();
+});
+app.use(requireAuth);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-registerAuthRoutes(app);
+registerAuthRoutes(app, io);
 
 app.get("/api/info", (_req, res) => {
   const ips = getLanAddresses();
@@ -112,7 +122,7 @@ if (isProduction) {
 
 app.use(jsonErrorHandler);
 
-function printBanner(): void {
+function printBanner(accessKey: string): void {
   const primaryIp = getPrimaryIp();
   const ips = getLanAddresses();
   const line = "─".repeat(52);
@@ -128,6 +138,9 @@ function printBanner(): void {
       console.log(`    • http://${address}:${PORT}  (${iface})`);
     }
   }
+  if (PRINT_KEY) {
+    console.log(`  Access key: ${accessKey}`);
+  }
   console.log(line);
   console.log("");
 }
@@ -142,7 +155,7 @@ httpServer.on("error", (err: NodeJS.ErrnoException) => {
 });
 
 httpServer.listen(PORT, "0.0.0.0", () => {
-  printBanner();
+  printBanner(accessKeyForBanner);
 });
 
 let shuttingDown = false;
@@ -151,7 +164,7 @@ function shutdown(signal: string): void {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`\n${signal} received, shutting down…`);
-  void Promise.all([flushStore(), flushFileStore()])
+  void Promise.all([flushStore(), flushFileStore(), flushSessions()])
     .catch(() => undefined)
     .finally(() => {
       void io.close();

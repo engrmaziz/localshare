@@ -2,14 +2,16 @@
 
 LAN-only web app for sharing **text**, **chat**, and **files** between phones, laptops, and tablets on the same Wi-Fi. No cloud, no accounts — traffic stays on your network.
 
+Every device must enter a 32-character **access key** before it can see chat, the shared pad, or files.
+
 ## Features
 
 - Shared text pad that stays in sync across every connected device
 - Simple LAN chat with device names, link detection, and copy
 - Drag-and-drop file sharing (photos, videos, zips) with live progress
 - QR code + copy/share URL so a phone can join without typing an IP
+- Optional host QR that embeds the access key (`#k=…`) for one-scan login
 - Dark/light theme, mobile tab layout, and Add to Home Screen support
-- Optional access PIN (`ACCESS_PIN`) for a light lock on a trusted LAN
 - Persistence across server restarts (chat, clipboard, files on disk)
 
 ## Screenshots
@@ -29,7 +31,7 @@ npm run build
 npm start
 ```
 
-Then open the Network URL printed in the terminal on this computer, and scan the QR code from a phone on the same Wi-Fi.
+The server prints **Local**, **Network**, and **Access key** in the console box. Open the Network URL on this computer, enter the key, then scan the QR from a phone on the same Wi-Fi (the phone will need the same key unless you enable **Include access key in QR code** on the host).
 
 For day-to-day development (API on `PORT`, Vite UI on `CLIENT_PORT`):
 
@@ -49,10 +51,37 @@ Optional: copy `.env.example` to `.env`. Defaults live in `.env.example` and as 
 | `PORT` | `7421` | API and production server (binds `0.0.0.0`) |
 | `CLIENT_PORT` | `7422` | Vite dev client only |
 | `UPLOAD_DIR` | `../data/uploads` | Where uploaded files are stored (relative to `server/`) |
-| `DATA_DIR` | `../data` | Chat, clipboard, and file metadata JSON |
+| `DATA_DIR` | `../data` | Chat, clipboard, file metadata, `access.key`, `sessions.json` |
 | `MAX_FILE_SIZE_MB` | unset (unlimited) | Reject larger uploads with HTTP 413 |
 | `AUTO_DELETE_HOURS` | unset (keep forever) | Delete files older than this (checked every 10 minutes) |
-| `ACCESS_PIN` | unset | If set, require this PIN before REST, files, and Socket.io |
+| `ACCESS_KEY` | unset | If set, must be exactly 32 characters with no whitespace; otherwise a key is generated into `DATA_DIR/access.key` |
+| `SESSION_TTL_HOURS` | `168` | Session cookie lifetime (7 days) |
+| `PRINT_KEY` | `true` | Set `false` to hide the key from the startup banner |
+| `COOKIE_SECURE` | `false` | Set `true` only after terminating HTTPS |
+
+## Authentication
+
+On first boot (when `ACCESS_KEY` is not set), LocalShare generates a random 32-character alphanumeric key with `crypto.randomInt` and writes it to `DATA_DIR/access.key` (mode `0600` on Unix). The sha256 of the key is kept in memory; login compares hashes with `timingSafeEqual`.
+
+The raw key is printed **once** in the startup banner (`Access key: …`) unless `PRINT_KEY=false`. It is never written to other logs. Failed logins log only the client IP.
+
+A successful login sets an HttpOnly `ls_session` cookie (SameSite=Lax, Path=/). **Secure is off by default** because the app is plain HTTP on the LAN — a Secure cookie would never be sent.
+
+Rotate the key and wipe sessions:
+
+```bash
+npm run key:rotate
+```
+
+Then **restart the server** so it loads the new hash. Every device is kicked back to the login screen.
+
+Rate limits: 5 failed logins per IP per minute; 10 consecutive failures lock that IP for 15 minutes; 60 login attempts per minute across all IPs.
+
+### Honest security note
+
+The app runs over **plain HTTP on the LAN**. Anyone who can sniff the same Wi-Fi can capture the access key or the session cookie. Use a trusted network (not a public hotspot). This is not a substitute for a firewall, VPN, or HTTPS.
+
+Optional upgrade: terminate HTTPS with a locally trusted certificate ([mkcert](https://github.com/FiloSottile/mkcert)), then set `COOKIE_SECURE=true` so the session cookie is only sent over TLS.
 
 ## Firewall
 
@@ -77,17 +106,17 @@ If the phone cannot connect but the PC can, the firewall is the usual cause.
 - **Wrong IP:** laptops with Ethernet + Wi-Fi + virtual adapters may advertise the wrong address. Use the dropdown on the Connect card.
 - **Port already in use:** the server prints `Port <PORT> is busy. Set PORT in .env` and exits. It does not pick another port. Change `PORT` / `CLIENT_PORT` in `.env`.
 - **QR opens the API, not the UI:** in development the UI is on `CLIENT_PORT`. The QR uses `window.location.port` so it should match the page you opened. Prefer scanning from the Vite URL, not `localhost:7421`.
-- **Disconnected / PIN loop:** if `ACCESS_PIN` is set, unlock once; cookies and the socket handshake both need that PIN.
-
-## Security note
-
-LocalShare is designed for **trusted local networks**. It is not meant to be exposed to the internet. There is no multi-user permission model. Anyone who can reach the server on the LAN can read chat, the shared pad, and files (unless you set `ACCESS_PIN`, which is a simple shared secret — not a substitute for a firewall or VPN).
+- **Login loop / 401:** enter the 32-character key from the server banner (or `data/access.key`). After `npm run key:rotate`, restart the server and log in again.
 
 ## End-to-end checklist
 
-- [ ] Scan the QR with a phone on the same Wi-Fi and confirm the app loads
+- [ ] Fresh start: console prints a 32-character key; `data/access.key` exists
+- [ ] `curl -i http://localhost:7421/api/files` returns 401; `/api/health` returns 200
+- [ ] Browser shows only the login screen until the key is entered
+- [ ] Scan the QR with a phone; enter the key (or use a host QR with the key embedded)
 - [ ] Send text in the shared pad and see it on the other device
 - [ ] Send a chat message both ways
 - [ ] Upload a photo from the phone; confirm it appears on the laptop
-- [ ] Upload a large video from the phone; download it on the laptop
-- [ ] Restart the server (`Ctrl+C`, then `npm start`) and confirm chat, pad, and files are still there
+- [ ] Upload a large video from the phone; download it on the laptop; confirm video seeking and image previews
+- [ ] Log out (lock icon) kicks the device back to login
+- [ ] Restart the server and confirm chat, pad, and files are still there (sessions last `SESSION_TTL_HOURS`)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FileMeta } from "@shared/types";
+import { notifyUnauthorized } from "./auth.ts";
 
 export type UploadProgress = {
   loaded: number;
@@ -104,6 +105,9 @@ export function uploadFile(
           reject(new UploadError("Could not read the server response", xhr.status));
         }
         return;
+      }
+      if (xhr.status === 401) {
+        notifyUnauthorized();
       }
       let detail = messageForStatus(xhr.status);
       try {

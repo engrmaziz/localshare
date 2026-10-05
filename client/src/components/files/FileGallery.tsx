@@ -1,6 +1,7 @@
 import { FolderOpen, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FileMeta } from "@shared/types";
+import { apiFetch } from "../../lib/auth.ts";
 import { isImagePreview } from "../../lib/fileKind.ts";
 import { formatBytes } from "../../lib/formatBytes.ts";
 import { socket } from "../../lib/socket.ts";
@@ -30,7 +31,8 @@ export function FileGallery({ onError }: FileGalleryProps) {
 
     async function load() {
       try {
-        const res = await fetch("/api/files", { credentials: "include" });
+        const res = await apiFetch("/api/files");
+        if (res.status === 401) return;
         if (!res.ok) throw new Error("list failed");
         const body = (await res.json()) as FileMeta[];
         if (!cancelled) setFiles(Array.isArray(body) ? body : []);

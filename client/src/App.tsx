@@ -1,4 +1,4 @@
-import { AlignLeft, FolderUp, MessageCircle, Radio } from "lucide-react";
+import { AlignLeft, FolderUp, Lock, MessageCircle, Radio } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { FileMeta, Message } from "@shared/types";
 import { ChatPanel } from "./components/ChatPanel.tsx";
@@ -6,6 +6,7 @@ import { ConnectCard } from "./components/ConnectCard.tsx";
 import { FilesPanel } from "./components/FilesPanel.tsx";
 import { SharedText } from "./components/SharedText.tsx";
 import { ThemeToggle } from "./components/ThemeToggle.tsx";
+import { useAuth } from "./components/AuthGate.tsx";
 import { socket, useSocket } from "./lib/socket.ts";
 
 type Tab = "text" | "chat" | "files";
@@ -71,6 +72,7 @@ function TabButton({
 
 export default function App() {
   const { connected, clientCount } = useSocket();
+  const { logout } = useAuth();
   const kbInset = useKeyboardInset();
   const [tab, setTab] = useState<Tab>("text");
   const [chatUnread, setChatUnread] = useState(0);
@@ -143,6 +145,14 @@ export default function App() {
               {deviceLabel}
             </span>
             <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-panel dark:border-line-dark dark:bg-panel-dark"
+              aria-label="Lock / Log out"
+            >
+              <Lock className="size-4" />
+            </button>
           </div>
         </div>
         <p className="px-4 pb-3 text-xs text-quiet dark:text-quiet-dark sm:hidden">

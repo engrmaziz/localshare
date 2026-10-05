@@ -170,6 +170,8 @@ function sendStoredFile(
   disposition: "inline" | "attachment",
   extra: { sandbox?: boolean } = {},
 ): void {
+  // Same-origin <img>/<video>/<audio> and Range (seek/resume) send the
+  // session cookie automatically; requireAuth already ran for this route.
   const diskPath = resolveStoredPath(meta.storedName);
   if (!diskPath) {
     res.status(404).json({ error: "File not found" });
@@ -201,10 +203,12 @@ function sendStoredFile(
 
 export function registerFileRoutes(app: Express, io: Io): void {
   app.get("/api/storage", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
     res.json(storageStats());
   });
 
   app.get("/api/files", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
     const rows = list().sort((a, b) => b.uploadedAt - a.uploadedAt);
     res.json(rows);
   });

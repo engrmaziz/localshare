@@ -37,10 +37,14 @@ export const AUTO_DELETE_HOURS = optionalPositiveNumber(
   process.env.AUTO_DELETE_HOURS,
 );
 
-export const ACCESS_PIN = (() => {
-  const raw = process.env.ACCESS_PIN?.trim();
-  return raw ? raw : undefined;
-})();
+export const SESSION_TTL_HOURS =
+  optionalPositiveNumber(process.env.SESSION_TTL_HOURS) ?? 168;
+export const SESSION_TTL_MS = SESSION_TTL_HOURS * 60 * 60 * 1000;
+
+/** Set true after terminating HTTPS (mkcert). Default false: LAN HTTP. */
+export const COOKIE_SECURE = process.env.COOKIE_SECURE === "true";
+
+export const PRINT_KEY = process.env.PRINT_KEY !== "false";
 
 export const isProduction =
   process.env.NODE_ENV === "production" || existsSync(CLIENT_DIST);

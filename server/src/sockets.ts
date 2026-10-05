@@ -7,7 +7,7 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from "@shared/types";
-import { pinRequired, socketAuthed } from "./pin.ts";
+import { getSession, getSessionByHash } from "./auth/sessions.ts";
 import { addMessage, getClipboard, getMessages, setClipboard } from "./store.ts";
 
 const RATE_WINDOW_MS = 5_000;
@@ -51,13 +51,19 @@ function ackResult(ack: ((result: ChatAck) => void) | undefined, result: ChatAck
   ack?.(result);
 }
 
+function sessionHashOf(socket: ClientSocket): string | undefined {
+  return (socket.data as { sessionHash?: string }).sessionHash;
+}
+
 export function attachSockets(io: Io): void {
   io.use((socket, next) => {
-    if (!pinRequired() || socketAuthed(socket)) {
-      next();
+    const session = getSession(socket.handshake);
+    if (!session) {
+      next(new Error("unauthorized"));
       return;
     }
-    next(new Error("PIN required"));
+    (socket.data as { sessionHash: string }).sessionHash = session.hash;
+    next();
   });
 
   io.on("connection", (socket: ClientSocket) => {
@@ -104,4 +110,13 @@ export function attachSockets(io: Io): void {
       broadcastClientCount(io);
     });
   });
+
+  setInterval(() => {
+    for (const socket of io.sockets.sockets.values()) {
+      const hash = sessionHashOf(socket as ClientSocket);
+      if (!hash || !getSessionByHash(hash)) {
+        socket.disconnect(true);
+      }
+    }
+  }, 60_000).unref();
 }

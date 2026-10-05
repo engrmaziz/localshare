@@ -2,6 +2,7 @@ import { Check, Copy, Download, ExternalLink, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { FileMeta } from "@shared/types";
 import { writeClipboard } from "../../lib/clipboard.ts";
+import { apiFetch } from "../../lib/auth.ts";
 import {
   isAudioPreview,
   isImagePreview,
@@ -47,10 +48,10 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
     }
     setBusy(true);
     try {
-      const res = await fetch(`/api/files/${file.id}`, {
+      const res = await apiFetch(`/api/files/${file.id}`, {
         method: "DELETE",
-        credentials: "include",
       });
+      if (res.status === 401) return;
       if (!res.ok && res.status !== 204) {
         throw new Error("Delete failed");
       }

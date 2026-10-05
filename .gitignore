@@ -1,6 +1,8 @@
 node_modules
 dist
 data/
+data/access.key
+data/sessions.json
 .env
 *.log
 .DS_Store

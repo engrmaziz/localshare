@@ -15,7 +15,8 @@
     "build": "npm run build -w client",
     "start": "cross-env NODE_ENV=production npm run start -w server",
     "lint": "eslint .",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w client"
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "key:rotate": "npm run key:rotate -w server"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
