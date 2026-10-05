@@ -122,4 +122,3 @@ Multiple files in one request: repeat `-F "files=@./another.bin"`.
 - Only small JSON metadata (`files.json`) is kept in memory.
 
 OS file cache may grow; that is the kernel, not the Node heap (`process.memoryUsage().heapUsed`).
-
