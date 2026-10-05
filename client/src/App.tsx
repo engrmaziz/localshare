@@ -1,15 +1,16 @@
-import { AlignLeft, FolderUp, Lock, MessageCircle, Radio } from "lucide-react";
+import { AlignLeft, FolderUp, Lock, Radio } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { FileMeta, Message } from "@shared/types";
+import type { FileMeta } from "@shared/types";
 import { ChatPanel } from "./components/ChatPanel.tsx";
 import { ConnectCard } from "./components/ConnectCard.tsx";
 import { FilesPanel } from "./components/FilesPanel.tsx";
 import { SharedText } from "./components/SharedText.tsx";
 import { ThemeToggle } from "./components/ThemeToggle.tsx";
+import { ResetShareButton } from "./components/ResetShareButton.tsx";
 import { useAuth } from "./components/AuthGate.tsx";
 import { socket, useSocket } from "./lib/socket.ts";
 
-type Tab = "text" | "chat" | "files";
+type Tab = "text" | "files";
 
 function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);
@@ -75,7 +76,6 @@ export default function App() {
   const { logout } = useAuth();
   const kbInset = useKeyboardInset();
   const [tab, setTab] = useState<Tab>("text");
-  const [chatUnread, setChatUnread] = useState(0);
   const [fileBadge, setFileBadge] = useState(0);
   const tabRef = useRef<Tab>(tab);
   const keyboardOpen = kbInset > 60;
@@ -85,66 +85,76 @@ export default function App() {
   }, [tab]);
 
   useEffect(() => {
-    const onMessage = (_message: Message) => {
-      if (tabRef.current !== "chat") setChatUnread((n) => n + 1);
-    };
     const onFiles = (added: FileMeta[]) => {
       if (tabRef.current !== "files" && added.length > 0) {
         setFileBadge((n) => n + added.length);
       }
     };
-    socket.on("chat:message", onMessage);
+    const onReset = () => setFileBadge(0);
     socket.on("files:added", onFiles);
+    socket.on("share:reset", onReset);
+    socket.on("files:cleared", onReset);
     return () => {
-      socket.off("chat:message", onMessage);
       socket.off("files:added", onFiles);
+      socket.off("share:reset", onReset);
+      socket.off("files:cleared", onReset);
     };
   }, []);
 
   function selectTab(next: Tab) {
     setTab(next);
-    if (next === "chat") setChatUnread(0);
     if (next === "files") setFileBadge(0);
   }
+
+  useEffect(() => {
+    const onFocusFiles = () => selectTab("files");
+    window.addEventListener("localshare:focus-files", onFocusFiles);
+    return () => window.removeEventListener("localshare:focus-files", onFocusFiles);
+  }, []);
 
   const deviceLabel =
     clientCount === 1 ? "1 device connected" : `${clientCount} devices connected`;
 
   return (
-    <div className="bg-dot-grid flex min-h-dvh flex-col pt-[env(safe-area-inset-top)]">
-      <header className="sticky top-0 z-10 border-b border-line/80 bg-canvas/85 backdrop-blur-md dark:border-line-dark/80 dark:bg-canvas-dark/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-brand text-white">
+    <div className="bg-dot-grid flex min-h-dvh w-full max-w-full min-w-0 flex-col overflow-x-hidden pt-[env(safe-area-inset-top)]">
+      <header className="sticky top-0 z-30 w-full max-w-full border-b border-line/80 bg-canvas/95 dark:border-line-dark/80 dark:bg-canvas-dark/95">
+        <div className="mx-auto flex w-full min-w-0 max-w-6xl items-center gap-2 px-3 py-2 sm:gap-3 sm:px-6 sm:py-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
               <Radio className="size-4" aria-hidden />
             </span>
-            <div>
-              <p className="font-display text-lg font-extrabold leading-none tracking-tight">
+            <div className="min-w-0">
+              <p className="truncate font-display text-base font-extrabold leading-none tracking-tight sm:text-lg">
                 LocalShare
               </p>
-              <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-quiet dark:text-quiet-dark">
+              <p className="mt-0.5 hidden text-[11px] uppercase tracking-[0.14em] text-quiet dark:text-quiet-dark sm:block">
                 LAN only
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <span
-              className="inline-flex min-h-8 items-center gap-2 rounded-full border border-line bg-panel px-2.5 py-1 text-xs font-medium dark:border-line-dark dark:bg-panel-dark"
+              className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-panel dark:border-line-dark dark:bg-panel-dark sm:h-8 sm:w-auto sm:px-2.5"
               role="status"
+              aria-label={connected ? "Connected" : "Offline"}
+              title={connected ? "Connected" : "Offline"}
             >
               <span
-                className={`size-2 rounded-full ${
+                className={`size-2.5 rounded-full ${
                   connected ? "bg-live dark:bg-live-dark" : "bg-down"
                 }`}
                 aria-hidden
               />
-              {connected ? "Connected" : "Offline"}
+              <span className="ml-2 hidden text-xs font-medium sm:inline">
+                {connected ? "Connected" : "Offline"}
+              </span>
             </span>
-            <span className="hidden text-xs text-quiet dark:text-quiet-dark sm:inline">
+            <span className="hidden text-xs text-quiet dark:text-quiet-dark lg:inline">
               {deviceLabel}
             </span>
             <ThemeToggle />
+            <ResetShareButton />
             <button
               type="button"
               onClick={() => void logout()}
@@ -155,7 +165,7 @@ export default function App() {
             </button>
           </div>
         </div>
-        <p className="px-4 pb-3 text-xs text-quiet dark:text-quiet-dark sm:hidden">
+        <p className="px-3 pb-2 text-xs text-quiet dark:text-quiet-dark sm:hidden">
           {deviceLabel}
         </p>
       </header>
@@ -170,7 +180,7 @@ export default function App() {
       ) : null}
 
       <main
-        className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-5 sm:px-6 sm:py-8 lg:pb-8"
+        className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-4 px-3 py-4 sm:px-6 sm:py-8 lg:pb-8"
         style={{
           paddingBottom: `calc(1.25rem + env(safe-area-inset-bottom) + ${
             keyboardOpen ? kbInset : 72
@@ -179,18 +189,23 @@ export default function App() {
       >
         <ConnectCard />
 
-        <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
-          <div className="flex min-h-0 flex-col gap-4">
-            <div className={`${tab === "text" ? "flex" : "hidden"} min-h-0 flex-1 flex-col lg:flex`}>
-              <SharedText />
-            </div>
-            <div
-              className={`${tab === "chat" ? "flex" : "hidden"} min-h-0 flex-1 flex-col lg:flex`}
-            >
-              <ChatPanel />
-            </div>
+        <div className="flex min-h-[22rem] min-w-0 w-full flex-[1.7] flex-col sm:min-h-[26rem] lg:min-h-[32rem]">
+          <ChatPanel />
+        </div>
+
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
+          <div
+            className={`${
+              tab === "text" ? "flex" : "max-md:hidden flex"
+            } min-h-0 min-w-0 flex-1 flex-col`}
+          >
+            <SharedText />
           </div>
-          <div className={`${tab === "files" ? "flex" : "hidden"} min-h-0 flex-1 flex-col lg:flex`}>
+          <div
+            className={`${
+              tab === "files" ? "flex" : "max-md:hidden flex"
+            } min-h-0 min-w-0 flex-1 flex-col`}
+          >
             <FilesPanel />
           </div>
         </div>
@@ -198,25 +213,18 @@ export default function App() {
 
       <nav
         aria-label="Primary"
-        className={`fixed inset-x-0 z-20 border-t border-line bg-panel/95 px-2 pt-1 backdrop-blur-md dark:border-line-dark dark:bg-panel-dark/95 lg:hidden ${
+        className={`fixed bottom-0 left-0 right-0 z-40 w-full max-w-full border-t border-line bg-panel px-1 pt-1 dark:border-line-dark dark:bg-panel-dark md:hidden ${
           keyboardOpen ? "hidden" : ""
         }`}
-        style={{ bottom: 0, paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
+        style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="mx-auto flex max-w-lg">
+        <div className="mx-auto flex w-full max-w-lg min-w-0">
           <TabButton
             label="Text"
             icon={<AlignLeft className="size-5" aria-hidden />}
             active={tab === "text"}
             badge={0}
             onSelect={() => selectTab("text")}
-          />
-          <TabButton
-            label="Chat"
-            icon={<MessageCircle className="size-5" aria-hidden />}
-            active={tab === "chat"}
-            badge={chatUnread}
-            onSelect={() => selectTab("chat")}
           />
           <TabButton
             label="Files"

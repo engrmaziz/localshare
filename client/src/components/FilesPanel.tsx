@@ -1,7 +1,6 @@
 import { FolderUp } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { useDeviceName } from "../lib/identity.ts";
-import { useSocket } from "../lib/socket.ts";
 import { useToast } from "../lib/toast.tsx";
 import { useUploadQueue } from "../lib/upload.ts";
 import { DropZone } from "./files/DropZone.tsx";
@@ -10,7 +9,6 @@ import { UploadList } from "./files/UploadList.tsx";
 
 export function FilesPanel() {
   const { toast } = useToast();
-  const { connected } = useSocket();
   const { name } = useDeviceName();
   const { items, enqueue, cancel, retry, dismiss } = useUploadQueue(name);
   const pendingIds = useRef(new Set<string>());
@@ -24,14 +22,11 @@ export function FilesPanel() {
 
   const onFiles = useCallback(
     (files: File[]) => {
-      if (!connected) {
-        toast("Disconnected");
-        return;
-      }
+      window.dispatchEvent(new Event("localshare:focus-files"));
       const ids = enqueue(files);
       for (const id of ids) pendingIds.current.add(id);
     },
-    [connected, enqueue, toast],
+    [enqueue],
   );
 
   useEffect(() => {
@@ -58,7 +53,7 @@ export function FilesPanel() {
   }, [items, toast]);
 
   return (
-    <section className="flex min-h-[320px] flex-col rounded-2xl border border-line bg-panel p-5 shadow-sm dark:border-line-dark dark:bg-panel-dark lg:min-h-full">
+    <section className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-panel p-4 shadow-sm dark:border-line-dark dark:bg-panel-dark sm:p-5 md:min-h-full">
       <div className="flex items-center gap-2">
         <FolderUp className="size-4 text-brand dark:text-brand-glow" />
         <h2 className="font-display text-lg font-bold">Files</h2>
@@ -68,7 +63,7 @@ export function FilesPanel() {
       </p>
 
       <div className="mt-4">
-        <DropZone disabled={!connected} onFiles={onFiles} />
+        <DropZone onFiles={onFiles} />
       </div>
 
       <div className="mt-3">
@@ -80,7 +75,7 @@ export function FilesPanel() {
         />
       </div>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col">
+      <div className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col">
         <FileGallery onError={onError} />
       </div>
     </section>

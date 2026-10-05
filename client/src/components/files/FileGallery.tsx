@@ -53,15 +53,32 @@ export function FileGallery({ onError }: FileGalleryProps) {
     const onRemoved = ({ id }: { id: string }) => {
       setFiles((current) => current.filter((row) => row.id !== id));
     };
+    const onLocalAdded = (event: Event) => {
+      const detail = (event as CustomEvent<FileMeta[]>).detail;
+      if (Array.isArray(detail)) onAdded(detail);
+      void load();
+    };
+
+    const onCleared = () => {
+      setFiles([]);
+      setQuery("");
+      setLightbox(null);
+    };
 
     socket.on("files:added", onAdded);
     socket.on("files:removed", onRemoved);
+    socket.on("files:cleared", onCleared);
+    socket.on("share:reset", onCleared);
     socket.on("connect", load);
+    window.addEventListener("localshare:files-added", onLocalAdded);
     return () => {
       cancelled = true;
       socket.off("files:added", onAdded);
       socket.off("files:removed", onRemoved);
+      socket.off("files:cleared", onCleared);
+      socket.off("share:reset", onCleared);
       socket.off("connect", load);
+      window.removeEventListener("localshare:files-added", onLocalAdded);
     };
   }, [onError]);
 
@@ -92,31 +109,33 @@ export function FileGallery({ onError }: FileGalleryProps) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-xs text-quiet dark:text-quiet-dark">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <p className="shrink-0 text-xs text-quiet dark:text-quiet-dark">
           {files.length} {files.length === 1 ? "file" : "files"} · {formatBytes(totalBytes)}
         </p>
-        <label className="relative min-w-[8rem] flex-1">
-          <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-quiet dark:text-quiet-dark" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name"
-            className="w-full min-h-11 rounded-lg border border-line bg-canvas py-2 pl-7 pr-2 text-base outline-none focus:border-brand dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow sm:min-h-0 sm:py-1.5 sm:text-xs"
-          />
-        </label>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
-          className="min-h-11 rounded-lg border border-line bg-canvas px-2 py-1.5 text-base outline-none dark:border-line-dark dark:bg-canvas-dark sm:min-h-0 sm:text-xs"
-          aria-label="Sort files"
-        >
-          <option value="newest">Newest</option>
-          <option value="oldest">Oldest</option>
-          <option value="name">Name</option>
-          <option value="size">Size</option>
-        </select>
+        <div className="flex min-w-0 w-full gap-2 sm:w-auto sm:flex-1">
+          <label className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-quiet dark:text-quiet-dark" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by name"
+              className="w-full min-h-11 rounded-lg border border-line bg-canvas py-2 pl-7 pr-2 text-base outline-none focus:border-brand dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow sm:min-h-0 sm:py-1.5 sm:text-xs"
+            />
+          </label>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="min-h-11 w-[7.5rem] shrink-0 rounded-lg border border-line bg-canvas px-2 py-1.5 text-base outline-none dark:border-line-dark dark:bg-canvas-dark sm:min-h-0 sm:w-auto sm:text-xs"
+            aria-label="Sort files"
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="name">Name</option>
+            <option value="size">Size</option>
+          </select>
+        </div>
       </div>
 
       {visible.length === 0 ? (
@@ -130,20 +149,21 @@ export function FileGallery({ onError }: FileGalleryProps) {
           </p>
         </div>
       ) : (
-        <div className="grid max-h-[28rem] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
+        <ul className="flex min-w-0 flex-col gap-2">
           {visible.map((file) => (
-            <FileCard
-              key={file.id}
-              file={file}
-              now={now}
-              onPreview={
-                isImagePreview(file.mimeType) ? () => openLightbox(file.id) : undefined
-              }
-              onDeleted={(id) => setFiles((current) => current.filter((row) => row.id !== id))}
-              onError={onError}
-            />
+            <li key={file.id} className="min-w-0">
+              <FileCard
+                file={file}
+                now={now}
+                onPreview={
+                  isImagePreview(file.mimeType) ? () => openLightbox(file.id) : undefined
+                }
+                onDeleted={(id) => setFiles((current) => current.filter((row) => row.id !== id))}
+                onError={onError}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {lightbox != null ? (

@@ -168,7 +168,7 @@ export function ConnectCard() {
       : hostKey;
 
   return (
-    <section className="rounded-2xl border border-line bg-panel p-4 shadow-sm dark:border-line-dark dark:bg-panel-dark sm:p-5">
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-panel p-4 shadow-sm dark:border-line-dark dark:bg-panel-dark sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand dark:text-brand-glow">
@@ -191,16 +191,17 @@ export function ConnectCard() {
 
       {open ? (
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-stretch">
-          <div className="flex size-[176px] shrink-0 items-center justify-center self-center rounded-xl bg-white p-3 sm:self-auto">
+          <div className="mx-auto flex size-[148px] max-w-full shrink-0 items-center justify-center rounded-xl bg-white p-2 sm:size-[176px] sm:p-3">
             {qrValue ? (
               <QRCodeSVG
                 value={qrValue}
-                size={152}
+                size={128}
                 level="M"
-                marginSize={4}
+                marginSize={2}
                 bgColor="#ffffff"
                 fgColor="#111111"
                 title="QR code for this LocalShare URL"
+                className="max-h-full max-w-full"
               />
             ) : (
               <p className="px-2 text-center text-xs text-quiet">No LAN address yet</p>
@@ -214,7 +215,7 @@ export function ConnectCard() {
                   Same Wi-Fi. Scan the QR or copy the address — it uses this
                   page&apos;s port so phones hit the UI, not just the API.
                 </p>
-                <p className="break-all font-display text-lg font-bold sm:text-xl">
+                <p className="break-all font-display text-base font-bold sm:text-xl">
                   {url}
                 </p>
                 <div className="flex flex-wrap gap-2">

@@ -1,5 +1,5 @@
 import { Upload } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type DragEvent } from "react";
 
 type DropZoneProps = {
   disabled?: boolean;
@@ -67,6 +67,7 @@ async function filesFromDataTransfer(data: DataTransfer): Promise<File[]> {
 
 export function DropZone({ disabled, onFiles }: DropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
   const dragDepth = useRef(0);
   const [over, setOver] = useState(false);
 
@@ -100,7 +101,11 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
     dragDepth.current = 0;
     setOver(false);
     if (disabled) return;
-    emit(await filesFromDataTransfer(event.dataTransfer));
+    try {
+      emit(await filesFromDataTransfer(event.dataTransfer));
+    } catch {
+      emit([...event.dataTransfer.files].filter(shouldKeep));
+    }
   };
 
   useEffect(() => {
@@ -134,17 +139,19 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
       onDragLeave={onDragLeave}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className={`flex min-h-[9.5rem] flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition sm:min-h-[8rem] ${
+      className={`flex min-h-[9.5rem] min-w-0 flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition sm:min-h-[8rem] ${
         over
           ? "border-brand bg-brand/10 dark:border-brand-glow dark:bg-brand/15"
           : "border-line bg-canvas/60 dark:border-line-dark dark:bg-canvas-dark/40"
       } ${disabled ? "opacity-50" : ""}`}
     >
       <input
+        id={inputId}
         ref={inputRef}
         type="file"
         multiple
         className="sr-only"
+        disabled={disabled}
         onChange={(event) => {
           emit([...event.target.files ?? []].filter(shouldKeep));
           event.target.value = "";
@@ -157,14 +164,14 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
       <p className="mt-1 text-xs text-quiet dark:text-quiet-dark">
         Any type, including folders. Paste images with Ctrl+V / ⌘V.
       </p>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => inputRef.current?.click()}
-        className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+      <label
+        htmlFor={inputId}
+        className={`mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 ${
+          disabled ? "pointer-events-none opacity-50" : "cursor-pointer"
+        }`}
       >
         Choose files
-      </button>
+      </label>
     </div>
   );
 }

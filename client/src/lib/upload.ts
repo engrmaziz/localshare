@@ -100,7 +100,13 @@ export function uploadFile(
       if (xhr.status === 201) {
         try {
           const body: unknown = JSON.parse(xhr.responseText || "[]");
-          resolve(Array.isArray(body) ? (body as FileMeta[]) : []);
+          const files = Array.isArray(body) ? (body as FileMeta[]) : [];
+          if (files.length > 0 && typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("localshare:files-added", { detail: files }),
+            );
+          }
+          resolve(files);
         } catch {
           reject(new UploadError("Could not read the server response", xhr.status));
         }

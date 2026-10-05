@@ -8,15 +8,20 @@ import {
   type ServerToClientEvents,
 } from "@shared/types";
 import { getSession, getSessionByHash } from "./auth/sessions.ts";
-import { addMessage, getClipboard, getMessages, setClipboard } from "./store.ts";
+import { addMessage, clearMessages, getClipboard, getMessage, getMessages, setClipboard, wipeClipboard } from "./store.ts";
+import { clearAllFiles } from "./files/fileStore.ts";
 
 const RATE_WINDOW_MS = 5_000;
 const RATE_MAX = 10;
+const CLEAR_WINDOW_MS = 10_000;
+const RESET_WINDOW_MS = 15_000;
 
 type Io = Server<ClientToServerEvents, ServerToClientEvents>;
 type ClientSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 const sendTimes = new Map<string, number[]>();
+const lastClear = new Map<string, number>();
+const lastReset = new Map<string, number>();
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -49,6 +54,12 @@ function broadcastClientCount(io: Io): void {
 
 function ackResult(ack: ((result: ChatAck) => void) | undefined, result: ChatAck) {
   ack?.(result);
+}
+
+function snippet(text: string): string {
+  const trimmed = text.trim().replace(/\s+/g, " ");
+  if (trimmed.length <= 140) return trimmed;
+  return `${trimmed.slice(0, 137)}…`;
 }
 
 function sessionHashOf(socket: ClientSocket): string | undefined {
@@ -86,13 +97,62 @@ export function attachSockets(io: Io): void {
         return;
       }
 
+      const replyToId =
+        typeof payload.replyToId === "string" ? payload.replyToId : "";
+      const quoted = replyToId ? getMessage(replyToId) : undefined;
+
       const message = addMessage({
         id: nanoid(),
         sender: sanitizeSender(payload.sender),
         text,
         timestamp: Date.now(),
+        ...(quoted
+          ? {
+              replyTo: {
+                id: quoted.id,
+                sender: quoted.sender,
+                text: snippet(quoted.text),
+              },
+            }
+          : {}),
       });
       io.emit("chat:message", message);
+      ackResult(ack, { ok: true });
+    });
+
+    socket.on("chat:clear", (ack) => {
+      const now = Date.now();
+      const previous = lastClear.get(socket.id) ?? 0;
+      if (now - previous < CLEAR_WINDOW_MS) {
+        ackResult(ack, { ok: false, error: "Wait a moment before clearing again" });
+        return;
+      }
+      lastClear.set(socket.id, now);
+      clearMessages();
+      io.emit("chat:cleared");
+      ackResult(ack, { ok: true });
+    });
+
+    socket.on("share:reset", async (ack) => {
+      const now = Date.now();
+      const previous = lastReset.get(socket.id) ?? 0;
+      if (now - previous < RESET_WINDOW_MS) {
+        ackResult(ack, { ok: false, error: "Wait a moment before resetting again" });
+        return;
+      }
+      lastReset.set(socket.id, now);
+      clearMessages();
+      const clipboard = wipeClipboard();
+      try {
+        await clearAllFiles();
+      } catch {
+        ackResult(ack, { ok: false, error: "Could not delete shared files" });
+        return;
+      }
+      io.emit("share:reset", { clipboard });
+      io.emit("chat:cleared");
+      io.emit("files:cleared");
+      io.emit("clipboard:changed", clipboard);
       ackResult(ack, { ok: true });
     });
 
@@ -107,6 +167,8 @@ export function attachSockets(io: Io): void {
 
     socket.on("disconnect", () => {
       sendTimes.delete(socket.id);
+      lastClear.delete(socket.id);
+      lastReset.delete(socket.id);
       broadcastClientCount(io);
     });
   });

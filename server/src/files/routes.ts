@@ -58,6 +58,7 @@ const upload = multer({
   storage,
   limits: {
     fileSize: MAX_FILE_SIZE_BYTES ?? Infinity,
+    files: 100,
   },
 });
 
@@ -67,13 +68,13 @@ const uploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many uploads, try again in a minute" },
+  validate: false,
+  keyGenerator: (req) => req.socket.remoteAddress ?? "unknown",
 });
 
 function uploadPaths(req: Request): string[] {
   const tracked = (req as UploadRequest)._uploadPaths ?? [];
-  const fromMulter = Array.isArray(req.files)
-    ? req.files.map((file) => file.path)
-    : [];
+  const fromMulter = incomingFiles(req).map((file) => file.path);
   return [...new Set([...tracked, ...fromMulter])];
 }
 
@@ -113,15 +114,27 @@ function keepSocketAlive(req: Request, _res: Response, next: NextFunction): void
 
 function attachAbortCleanup(req: Request): () => void {
   let active = true;
-  const cleanup = () => {
+  const onClose = () => {
     if (!active) return;
+    // Only discard partials. A finished body must be kept even if Node
+    // fires `close`/`aborted` after multer has already parsed the files.
+    if (req.readableEnded) return;
     void deletePaths(uploadPaths(req));
   };
-  req.once("aborted", cleanup);
+  req.once("close", onClose);
   return () => {
     active = false;
-    req.off("aborted", cleanup);
+    req.off("close", onClose);
   };
+}
+
+function incomingFiles(req: Request): Express.Multer.File[] {
+  const files = req.files;
+  if (Array.isArray(files)) return files;
+  if (files && typeof files === "object") {
+    return Object.values(files).flat();
+  }
+  return [];
 }
 
 function toMeta(
@@ -219,7 +232,10 @@ export function registerFileRoutes(app: Express, io: Io): void {
     keepSocketAlive,
     (req, res, next) => {
       const disarmAbort = attachAbortCleanup(req);
-      upload.array("files")(req, res, (err: unknown) => {
+      upload.fields([
+        { name: "files", maxCount: 100 },
+        { name: "files[]", maxCount: 100 },
+      ])(req, res, (err: unknown) => {
         if (err) {
           void deletePaths(uploadPaths(req)).finally(() => {
             disarmAbort();
@@ -227,23 +243,16 @@ export function registerFileRoutes(app: Express, io: Io): void {
           });
           return;
         }
-        (req as UploadRequest)._disarmAbort = disarmAbort;
+        // Parse succeeded — never delete these files if the socket later closes.
+        disarmAbort();
         next();
       });
     },
     async (req, res) => {
-      const disarmAbort =
-        (req as UploadRequest)._disarmAbort ?? (() => undefined);
-      if (req.aborted) {
-        await deletePaths(uploadPaths(req));
-        disarmAbort();
-        return;
-      }
-
-      const incoming = Array.isArray(req.files) ? req.files : [];
+      const incoming = incomingFiles(req);
       if (incoming.length === 0) {
         await deletePaths(uploadPaths(req));
-        disarmAbort();
+        console.warn("POST /api/files: no files in multipart body");
         res.status(400).json({ error: "No files uploaded" });
         return;
       }
@@ -268,13 +277,11 @@ export function registerFileRoutes(app: Express, io: Io): void {
           remove(meta.id);
         }
         await deletePaths(uploadPaths(req));
-        disarmAbort();
         sendUploadError(res, err);
         return;
       }
 
       io.emit("files:added", added);
-      disarmAbort();
       res.status(201).json(added);
     },
   );

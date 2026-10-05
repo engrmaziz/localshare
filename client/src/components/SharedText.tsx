@@ -155,11 +155,19 @@ export function SharedText() {
       applyRemote(state);
     };
 
+    const onReset = (state: { clipboard: ClipboardState }) => {
+      pendingRemote.current = null;
+      if (emitTimer.current) window.clearTimeout(emitTimer.current);
+      applyRemote(state.clipboard);
+    };
+
     socket.on("clipboard:state", onState);
     socket.on("clipboard:changed", onChanged);
+    socket.on("share:reset", onReset);
     return () => {
       socket.off("clipboard:state", onState);
       socket.off("clipboard:changed", onChanged);
+      socket.off("share:reset", onReset);
       if (emitTimer.current) window.clearTimeout(emitTimer.current);
       if (flushTimer.current) window.clearTimeout(flushTimer.current);
     };
@@ -199,7 +207,7 @@ export function SharedText() {
   const bytes = utf8Bytes(text);
 
   return (
-    <section className="flex min-h-[260px] flex-col rounded-2xl border border-line bg-panel p-5 shadow-sm dark:border-line-dark dark:bg-panel-dark">
+    <section className="flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-panel p-4 shadow-sm dark:border-line-dark dark:bg-panel-dark sm:p-5 md:min-h-full">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
@@ -266,7 +274,7 @@ export function SharedText() {
             ? "Type here — it appears on every connected device."
             : "Disconnected — reconnecting…"
         }
-        className="mt-4 min-h-[160px] flex-1 resize-y rounded-xl border border-line bg-canvas px-3 py-2.5 font-sans text-base leading-relaxed outline-none focus:border-brand disabled:opacity-60 dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow"
+        className="mt-4 min-h-[160px] min-w-0 flex-1 resize-y rounded-xl border border-line bg-canvas px-3 py-2.5 font-sans text-base leading-relaxed outline-none focus:border-brand disabled:opacity-60 dark:border-line-dark dark:bg-canvas-dark dark:focus:border-brand-glow"
       />
 
       <div className="mt-2 flex items-center justify-between text-[11px] text-quiet dark:text-quiet-dark">

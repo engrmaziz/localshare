@@ -91,11 +91,16 @@ app.get("/api/info", (_req, res) => {
   });
 });
 
-function shouldSkipSpa(urlPath: string): boolean {
+function shouldSkipSpa(urlPath: string, originalUrl = urlPath): boolean {
+  const path = urlPath.split("?")[0] ?? urlPath;
+  const original = originalUrl.split("?")[0] ?? originalUrl;
   return (
-    urlPath.startsWith("/api") ||
-    urlPath.startsWith("/files") ||
-    urlPath.startsWith("/socket.io")
+    path.startsWith("/api") ||
+    path.startsWith("/files") ||
+    path.startsWith("/socket.io") ||
+    original.startsWith("/api") ||
+    original.startsWith("/files") ||
+    original.startsWith("/socket.io")
   );
 }
 
@@ -110,7 +115,7 @@ if (isProduction) {
       next();
       return;
     }
-    if (shouldSkipSpa(req.path)) {
+    if (shouldSkipSpa(req.path, req.originalUrl)) {
       next();
       return;
     }

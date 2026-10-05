@@ -22,16 +22,30 @@ const emptyState = (): PersistedState => ({
   messages: [],
 });
 
-function isMessage(value: unknown): value is Message {
+function isReply(value: unknown): value is Message["replyTo"] {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
   return (
     typeof row.id === "string" &&
     typeof row.sender === "string" &&
-    typeof row.text === "string" &&
-    typeof row.timestamp === "number" &&
-    Number.isFinite(row.timestamp)
+    typeof row.text === "string"
   );
+}
+
+function isMessage(value: unknown): value is Message {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.id !== "string" ||
+    typeof row.sender !== "string" ||
+    typeof row.text !== "string" ||
+    typeof row.timestamp !== "number" ||
+    !Number.isFinite(row.timestamp)
+  ) {
+    return false;
+  }
+  if (row.replyTo != null && !isReply(row.replyTo)) return false;
+  return true;
 }
 
 function loadState(): PersistedState {
@@ -121,6 +135,10 @@ export function getMessages(): Message[] {
   return state.messages.slice();
 }
 
+export function getMessage(id: string): Message | undefined {
+  return state.messages.find((row) => row.id === id);
+}
+
 export function setClipboard(text: string): ClipboardState | null {
   const next = truncateUtf8(text, MAX_CLIPBOARD_BYTES);
   if (next === state.clipboard.text) return null;
@@ -136,6 +154,19 @@ export function addMessage(message: Message): Message {
   }
   scheduleSave();
   return message;
+}
+
+export function clearMessages(): boolean {
+  if (state.messages.length === 0) return false;
+  state.messages = [];
+  scheduleSave();
+  return true;
+}
+
+export function wipeClipboard(): ClipboardState {
+  state.clipboard = { text: "", updatedAt: Date.now() };
+  scheduleSave();
+  return getClipboard();
 }
 
 export async function flushStore(): Promise<void> {

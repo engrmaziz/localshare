@@ -23,10 +23,17 @@
   --color-down: #be123c;
 }
 
+html {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 html,
 body,
 #root {
   min-height: 100dvh;
+  min-width: 0;
+  max-width: 100%;
 }
 
 body {

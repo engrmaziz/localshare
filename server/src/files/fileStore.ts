@@ -177,6 +177,35 @@ export function storageStats(): { usedBytes: number; fileCount: number } {
   };
 }
 
+export async function clearAllFiles(): Promise<void> {
+  ensureDataDirs();
+  const snapshot = files.slice();
+  files = [];
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  await persistNow();
+
+  for (const meta of snapshot) {
+    const diskPath = resolveStoredPath(meta.storedName);
+    if (diskPath) await unlink(diskPath).catch(() => undefined);
+  }
+
+  let names: string[] = [];
+  try {
+    names = readdirSync(UPLOAD_DIR);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const resolved = path.resolve(UPLOAD_DIR, name);
+    const rel = path.relative(path.resolve(UPLOAD_DIR), resolved);
+    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) continue;
+    await unlink(resolved).catch(() => undefined);
+  }
+}
+
 export async function flushFileStore(): Promise<void> {
   if (saveTimer) {
     clearTimeout(saveTimer);
