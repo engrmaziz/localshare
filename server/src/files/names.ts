@@ -44,8 +44,50 @@ export function contentDispositionHeader(
   return `${kind}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 }
 
-export function isPreviewableMime(mimeType: string): boolean {
+export function inferMimeType(originalName: string, reportedMime?: string): string {
+  const baseMime = (reportedMime ?? "").toLowerCase().split(";")[0]?.trim() ?? "";
+  const ext = path.extname(originalBasename(originalName)).toLowerCase();
+
+  if (ext === ".pdf" || baseMime === "application/pdf" || baseMime === "application/x-pdf") {
+    return "application/pdf";
+  }
+  if (!baseMime || baseMime === "application/octet-stream") {
+    switch (ext) {
+      case ".jpg":
+      case ".jpeg":
+        return "image/jpeg";
+      case ".png":
+        return "image/png";
+      case ".gif":
+        return "image/gif";
+      case ".webp":
+        return "image/webp";
+      case ".svg":
+        return "image/svg+xml";
+      case ".mp4":
+        return "video/mp4";
+      case ".webm":
+        return "video/webm";
+      case ".mp3":
+        return "audio/mpeg";
+      case ".wav":
+        return "audio/wav";
+      case ".txt":
+        return "text/plain";
+      case ".json":
+        return "application/json";
+      case ".zip":
+        return "application/zip";
+      default:
+        return baseMime || "application/octet-stream";
+    }
+  }
+  return baseMime;
+}
+
+export function isPreviewableMime(mimeType: string, filename?: string): boolean {
   const mime = mimeType.toLowerCase().split(";")[0]?.trim() ?? "";
+  const ext = filename ? path.extname(originalBasename(filename)).toLowerCase() : "";
   if (
     mime === "image/svg+xml" ||
     mime === "text/html" ||
@@ -54,11 +96,13 @@ export function isPreviewableMime(mimeType: string): boolean {
   ) {
     return false;
   }
+  if (mime === "application/pdf" || mime === "application/x-pdf" || ext === ".pdf") {
+    return true;
+  }
   return (
     mime.startsWith("image/") ||
     mime.startsWith("video/") ||
     mime.startsWith("audio/") ||
-    mime === "application/pdf" ||
     mime === "text/plain"
   );
 }

@@ -15,8 +15,9 @@ export function isAudioPreview(mimeType: string): boolean {
   return mimeBase(mimeType).startsWith("audio/");
 }
 
-export function isPreviewable(mimeType: string): boolean {
+export function isPreviewable(mimeType: string, filename?: string): boolean {
   const mime = mimeBase(mimeType);
+  const ext = filename ? filename.split(".").pop()?.toLowerCase() ?? "" : "";
   if (
     mime === "image/svg+xml" ||
     mime === "text/html" ||
@@ -25,11 +26,13 @@ export function isPreviewable(mimeType: string): boolean {
   ) {
     return false;
   }
+  if (mime === "application/pdf" || mime === "application/x-pdf" || ext === "pdf") {
+    return true;
+  }
   return (
     mime.startsWith("image/") ||
     mime.startsWith("video/") ||
     mime.startsWith("audio/") ||
-    mime === "application/pdf" ||
     mime === "text/plain"
   );
 }
@@ -42,7 +45,7 @@ export function fileKind(mimeType: string, name: string): FileKind {
   if (mime.startsWith("image/")) return "image";
   if (mime.startsWith("video/")) return "video";
   if (mime.startsWith("audio/")) return "audio";
-  if (mime === "application/pdf" || ext === "pdf") return "pdf";
+  if (mime === "application/pdf" || mime === "application/x-pdf" || ext === "pdf") return "pdf";
   if (
     mime.includes("spreadsheet") ||
     mime.includes("excel") ||

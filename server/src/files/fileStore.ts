@@ -192,7 +192,7 @@ export async function clearAllFiles(): Promise<void> {
     if (diskPath) await unlink(diskPath).catch(() => undefined);
   }
 
-  let names: string[] = [];
+  let names: string[];
   try {
     names = readdirSync(UPLOAD_DIR);
   } catch {

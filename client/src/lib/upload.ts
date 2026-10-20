@@ -44,6 +44,21 @@ function messageForStatus(status: number): string {
   return `Upload failed (${status})`;
 }
 
+export function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 export function uploadFile(
   file: File,
   options: {
@@ -62,7 +77,10 @@ export function uploadFile(
 
     const xhr = new XMLHttpRequest();
     const form = new FormData();
-    form.append("files", file, file.name);
+    const isPdf = file.name.toLowerCase().endsWith(".pdf");
+    const mime = file.type || (isPdf ? "application/pdf" : "");
+    const blobToUpload = mime && !file.type ? file.slice(0, file.size, mime) : file;
+    form.append("files", blobToUpload, file.name);
 
     let lastAt = Date.now();
     let lastLoaded = 0;
@@ -234,11 +252,12 @@ export function useUploadQueue(deviceName: string) {
   const enqueue = useCallback((files: File[]) => {
     if (files.length === 0) return [] as string[];
     const added: UploadItem[] = files.map((file) => ({
-      id: crypto.randomUUID(),
+      id: generateId(),
       file,
       status: "queued",
       progress: emptyProgress(file.size),
     }));
+    itemsRef.current = [...itemsRef.current, ...added];
     setItems((current) => [...current, ...added]);
     return added.map((row) => row.id);
   }, []);

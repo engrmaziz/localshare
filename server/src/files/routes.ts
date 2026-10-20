@@ -26,6 +26,7 @@ import {
 import {
   contentDispositionHeader,
   decodeOriginalName,
+  inferMimeType,
   isPreviewableMime,
   originalBasename,
   safeExtension,
@@ -144,12 +145,14 @@ function toMeta(
   const storedName = path.basename(file.filename || file.path);
   const diskPath = resolveStoredPath(storedName);
   if (!diskPath) return null;
+  const originalName = originalBasename(file.originalname);
+  const mimeType = inferMimeType(originalName, file.mimetype);
   return {
     id: nanoid(),
-    originalName: originalBasename(file.originalname),
+    originalName,
     storedName,
     size: file.size,
-    mimeType: file.mimetype || "application/octet-stream",
+    mimeType,
     uploadedAt: Date.now(),
     uploader,
   };
@@ -173,6 +176,11 @@ function applyFileHeaders(
   res.setHeader("X-Content-Type-Options", "nosniff");
   if (extra.sandbox) {
     res.setHeader("Content-Security-Policy", "sandbox");
+  } else if (disposition === "inline") {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self' blob: data:; object-src 'self' blob: data:; script-src 'none'; style-src 'self' 'unsafe-inline'",
+    );
   }
 }
 
@@ -329,7 +337,7 @@ export function registerFileRoutes(app: Express, io: Io): void {
       res.status(404).json({ error: "File not found" });
       return;
     }
-    if (isPreviewableMime(meta.mimeType)) {
+    if (isPreviewableMime(meta.mimeType, meta.originalName)) {
       sendStoredFile(req, res, meta, "inline");
       return;
     }

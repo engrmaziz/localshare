@@ -1,4 +1,4 @@
-import { Upload } from "lucide-react";
+import { FolderUp, Upload } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type DragEvent } from "react";
 
 type DropZoneProps = {
@@ -38,27 +38,40 @@ function readAllDirectoryEntries(
 }
 
 async function flattenEntry(entry: FileSystemEntry): Promise<File[]> {
-  if (entry.isFile) {
-    const file = await readFileEntry(entry as FileSystemFileEntry);
-    return shouldKeep(file) ? [file] : [];
+  try {
+    if (entry.isFile) {
+      const file = await readFileEntry(entry as FileSystemFileEntry);
+      return shouldKeep(file) ? [file] : [];
+    }
+    if (!entry.isDirectory) return [];
+    const children = await readAllDirectoryEntries(
+      (entry as FileSystemDirectoryEntry).createReader(),
+    );
+    const results = await Promise.allSettled(children.map(flattenEntry));
+    const collected: File[] = [];
+    for (const res of results) {
+      if (res.status === "fulfilled") {
+        collected.push(...res.value);
+      }
+    }
+    return collected;
+  } catch {
+    return [];
   }
-  if (!entry.isDirectory) return [];
-  const children = await readAllDirectoryEntries(
-    (entry as FileSystemDirectoryEntry).createReader(),
-  );
-  const nested = await Promise.all(children.map(flattenEntry));
-  return nested.flat();
 }
 
 async function filesFromDataTransfer(data: DataTransfer): Promise<File[]> {
   const items = [...data.items];
   if (items.some((item) => typeof item.webkitGetAsEntry === "function")) {
     const entries = items
-      .map((item) => item.webkitGetAsEntry())
+      .map((item) => (typeof item.webkitGetAsEntry === "function" ? item.webkitGetAsEntry() : null))
       .filter((entry): entry is FileSystemEntry => Boolean(entry));
     if (entries.length > 0) {
-      const nested = await Promise.all(entries.map(flattenEntry));
-      const flat = nested.flat();
+      const results = await Promise.allSettled(entries.map(flattenEntry));
+      const flat: File[] = [];
+      for (const res of results) {
+        if (res.status === "fulfilled") flat.push(...res.value);
+      }
       if (flat.length > 0) return flat;
     }
   }
@@ -67,7 +80,9 @@ async function filesFromDataTransfer(data: DataTransfer): Promise<File[]> {
 
 export function DropZone({ disabled, onFiles }: DropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
+  const folderInputId = useId();
   const dragDepth = useRef(0);
   const [over, setOver] = useState(false);
 
@@ -127,7 +142,7 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
       role="region"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
-      aria-label="Drop files here, or press Enter or Space to choose files"
+      aria-label="Drop files or folders here, or press Enter or Space to choose files"
       onKeyDown={(event) => {
         if (disabled) return;
         if (event.key === "Enter" || event.key === " ") {
@@ -157,21 +172,45 @@ export function DropZone({ disabled, onFiles }: DropZoneProps) {
           event.target.value = "";
         }}
       />
+      <input
+        id={folderInputId}
+        ref={folderInputRef}
+        type="file"
+        multiple
+        className="sr-only"
+        disabled={disabled}
+        {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+        onChange={(event) => {
+          emit([...event.target.files ?? []].filter(shouldKeep));
+          event.target.value = "";
+        }}
+      />
       <Upload className="size-8 text-brand dark:text-brand-glow" />
       <p className="mt-2 font-display text-base font-bold">
-        {over ? "Drop to share" : "Drop files here"}
+        {over ? "Drop to share" : "Drop files or folders here"}
       </p>
       <p className="mt-1 text-xs text-quiet dark:text-quiet-dark">
-        Any type, including folders. Paste images with Ctrl+V / ⌘V.
+        Any type, including PDF documents and folders. Paste images with Ctrl+V / ⌘V.
       </p>
-      <label
-        htmlFor={inputId}
-        className={`mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 ${
-          disabled ? "pointer-events-none opacity-50" : "cursor-pointer"
-        }`}
-      >
-        Choose files
-      </label>
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+        <label
+          htmlFor={inputId}
+          className={`inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:opacity-90 ${
+            disabled ? "pointer-events-none opacity-50" : "cursor-pointer"
+          }`}
+        >
+          Choose files
+        </label>
+        <label
+          htmlFor={folderInputId}
+          className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-panel px-3.5 py-2 text-sm font-medium text-ink hover:bg-canvas dark:border-line-dark dark:bg-panel-dark dark:text-ink-dark dark:hover:bg-canvas-dark ${
+            disabled ? "pointer-events-none opacity-50" : "cursor-pointer"
+          }`}
+        >
+          <FolderUp className="size-4 text-brand dark:text-brand-glow" />
+          Choose folder
+        </label>
+      </div>
     </div>
   );
 }

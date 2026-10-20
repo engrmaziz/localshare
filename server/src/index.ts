@@ -55,7 +55,7 @@ app.use(
         imgSrc: ["'self'", "data:", "blob:"],
         mediaSrc: ["'self'"],
         connectSrc: ["'self'", "ws:", "wss:"],
-        objectSrc: ["'none'"],
+        objectSrc: ["'self'", "blob:", "data:"],
         frameAncestors: ["'none'"],
         upgradeInsecureRequests: null,
       },

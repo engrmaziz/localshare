@@ -22,9 +22,9 @@ export function FileCard({ file, now, onPreview, onDeleted, onError }: FileCardP
   const [busy, setBusy] = useState(false);
   const downloadUrl = `/files/${file.id}/download`;
   const rawUrl = `/files/${file.id}/raw`;
-  const previewable = isPreviewable(file.mimeType);
-  const image = isImagePreview(file.mimeType);
   const name = file.originalName.trim() || file.storedName || "Untitled file";
+  const previewable = isPreviewable(file.mimeType, name);
+  const image = isImagePreview(file.mimeType);
 
   async function copyLink() {
     const absolute = `${window.location.origin}${downloadUrl}`;
