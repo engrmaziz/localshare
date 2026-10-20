@@ -1,7 +1,7 @@
 export function formatBytes(bytes: number, digits = 1): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return "0 B";
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
   if (bytes < 1024) return `${Math.round(bytes)} B`;
-  const units = ["KB", "MB", "GB", "TB"];
+  const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
   while (value >= 1024 && unit < units.length - 1) {
