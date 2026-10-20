@@ -1,4 +1,6 @@
 import {
+  Bell,
+  BellOff,
   Check,
   Copy,
   Eraser,
@@ -23,6 +25,15 @@ import { socket, useSocket } from "../lib/socket.ts";
 import { formatRelativeTime } from "../lib/time.ts";
 import { useToast } from "../lib/toast.tsx";
 import { useDeviceName } from "../lib/identity.ts";
+import {
+  getNotificationPermission,
+  handleIncomingMessageTitle,
+  isSoundMuted,
+  playNotificationSound,
+  requestNotificationPermission,
+  setSoundMuted,
+  showChatNotification,
+} from "../lib/notifications.ts";
 import { EmojiPicker } from "./EmojiPicker.tsx";
 
 function LinkifiedText({ text }: { text: string }) {
@@ -226,9 +237,35 @@ export function ChatPanel() {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [muted, setMuted] = useState(isSoundMuted);
+  const [notifPerm, setNotifPerm] = useState(getNotificationPermission);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nearBottom = useRef(true);
+  const nameRef = useRef(name);
+
+  useEffect(() => {
+    nameRef.current = name;
+  }, [name]);
+
+  async function toggleAlerts() {
+    if (notifPerm === "default") {
+      const perm = await requestNotificationPermission();
+      setNotifPerm(perm);
+      if (perm === "granted") {
+        toast("Desktop notifications enabled", "success");
+      }
+    }
+    const nextMuted = !muted;
+    setSoundMuted(nextMuted);
+    setMuted(nextMuted);
+    if (!nextMuted) {
+      playNotificationSound();
+      toast("Message sound enabled", "info");
+    } else {
+      toast("Message sound muted", "info");
+    }
+  }
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 15_000);
@@ -243,6 +280,14 @@ export function ChatPanel() {
           ? current
           : [...current, message],
       );
+
+      if (message.sender !== nameRef.current) {
+        playNotificationSound();
+        handleIncomingMessageTitle();
+        if (document.hidden) {
+          showChatNotification(message);
+        }
+      }
     };
     const onCleared = () => {
       setMessages([]);
@@ -362,6 +407,28 @@ export function ChatPanel() {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
           <DeviceNameEditor name={name} onRename={rename} />
+          <button
+            type="button"
+            onClick={toggleAlerts}
+            className={`inline-flex min-h-11 items-center gap-1 rounded-lg border px-2 text-[11px] font-medium transition ${
+              muted
+                ? "border-line text-quiet opacity-60 hover:opacity-100 dark:border-line-dark dark:text-quiet-dark"
+                : "border-brand/40 bg-brand/10 text-brand hover:bg-brand/15 dark:border-brand-glow/40 dark:bg-brand-glow/10 dark:text-brand-glow"
+            }`}
+            title={
+              muted
+                ? "Alerts muted. Click to enable sound chime and notifications"
+                : "Alert chime active. Click to mute"
+            }
+            aria-label={muted ? "Unmute message alerts" : "Mute message alerts"}
+          >
+            {muted ? (
+              <BellOff className="size-3.5 shrink-0" />
+            ) : (
+              <Bell className="size-3.5 shrink-0" />
+            )}
+            <span>{muted ? "Muted" : "Alerts"}</span>
+          </button>
           <button
             type="button"
             disabled={!connected || messages.length === 0}

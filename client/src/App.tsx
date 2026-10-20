@@ -9,6 +9,10 @@ import { ThemeToggle } from "./components/ThemeToggle.tsx";
 import { ResetShareButton } from "./components/ResetShareButton.tsx";
 import { useAuth } from "./components/AuthGate.tsx";
 import { socket, useSocket } from "./lib/socket.ts";
+import {
+  initAudioOnInteraction,
+  initTitleNotificationReset,
+} from "./lib/notifications.ts";
 
 type Tab = "text" | "files";
 
@@ -83,6 +87,15 @@ export default function App() {
   useEffect(() => {
     tabRef.current = tab;
   }, [tab]);
+
+  useEffect(() => {
+    const unbindAudio = initAudioOnInteraction();
+    const unbindTitle = initTitleNotificationReset();
+    return () => {
+      unbindAudio();
+      unbindTitle();
+    };
+  }, []);
 
   useEffect(() => {
     const onFiles = (added: FileMeta[]) => {
