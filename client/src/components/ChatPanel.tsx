@@ -267,6 +267,13 @@ export function ChatPanel() {
     }
   }
 
+  function handleRename(next: string) {
+    const saved = rename(next);
+    if (socket.connected) {
+      socket.emit("device:identify", { name: saved });
+    }
+  }
+
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 15_000);
     return () => window.clearInterval(id);
@@ -406,7 +413,7 @@ export function ChatPanel() {
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
-          <DeviceNameEditor name={name} onRename={rename} />
+          <DeviceNameEditor name={name} onRename={handleRename} />
           <button
             type="button"
             onClick={toggleAlerts}

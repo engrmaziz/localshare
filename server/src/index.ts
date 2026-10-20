@@ -6,6 +6,8 @@ import helmet from "helmet";
 import { Server as SocketIOServer } from "socket.io";
 import type { ClientToServerEvents, ServerToClientEvents } from "@shared/types";
 import { loadAccessKey } from "./auth/accessKey.ts";
+import { flushBlocked, isIpBlocked } from "./auth/blockStore.ts";
+import { clientIp } from "./auth/loginLimit.ts";
 import { requireAuth } from "./auth/middleware.ts";
 import { registerAuthRoutes } from "./auth/routes.ts";
 import { flushSessions, startSessionMaintenance } from "./auth/sessions.ts";
@@ -69,6 +71,12 @@ app.use(express.json({ limit: "100kb" }));
 app.use((req, res, next) => {
   if (req.path.startsWith("/api")) {
     res.setHeader("Cache-Control", "no-store");
+  }
+  const ip = clientIp(req);
+  if (isIpBlocked(ip)) {
+    res.setHeader("Cache-Control", "no-store");
+    res.status(403).json({ error: "Access denied. This device has been blocked by the host." });
+    return;
   }
   next();
 });
@@ -169,7 +177,7 @@ function shutdown(signal: string): void {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`\n${signal} received, shutting down…`);
-  void Promise.all([flushStore(), flushFileStore(), flushSessions()])
+  void Promise.all([flushStore(), flushFileStore(), flushSessions(), flushBlocked()])
     .catch(() => undefined)
     .finally(() => {
       void io.close();

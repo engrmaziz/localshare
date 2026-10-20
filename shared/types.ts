@@ -44,8 +44,32 @@ export type FileMeta = {
   uploader: string;
 };
 
+export type ConnectedDevice = {
+  id: string;
+  name: string;
+  ip: string;
+  userAgent: string;
+  deviceType: "desktop" | "mobile" | "tablet" | "unknown";
+  browser: string;
+  os: string;
+  connectedAt: number;
+  isHost: boolean;
+};
+
+export type BlockedEntry = {
+  ip: string;
+  blockedAt: number;
+  reason?: string;
+};
+
+export type DeviceActionAck = { ok: true } | { ok: false; error: string };
+
 export type ServerToClientEvents = {
   "clients:count": (count: number) => void;
+  "devices:list": (devices: ConnectedDevice[]) => void;
+  "devices:blocked": (blocked: BlockedEntry[]) => void;
+  "auth:kicked": (payload: { reason: string }) => void;
+  "auth:blocked": (payload: { reason: string }) => void;
   "chat:history": (messages: Message[]) => void;
   "chat:message": (message: Message) => void;
   "chat:cleared": () => void;
@@ -65,4 +89,17 @@ export type ClientToServerEvents = {
   "chat:clear": (ack?: (result: ChatAck) => void) => void;
   "share:reset": (ack?: (result: ChatAck) => void) => void;
   "clipboard:update": (payload: ClipboardUpdatePayload) => void;
+  "device:identify": (payload: { name: string }) => void;
+  "device:disconnect": (
+    payload: { deviceId: string },
+    ack?: (result: DeviceActionAck) => void,
+  ) => void;
+  "device:block": (
+    payload: { ip: string; reason?: string },
+    ack?: (result: DeviceActionAck) => void,
+  ) => void;
+  "device:unblock": (
+    payload: { ip: string },
+    ack?: (result: DeviceActionAck) => void,
+  ) => void;
 };

@@ -1,8 +1,9 @@
-import { AlignLeft, FolderUp, Lock, Radio } from "lucide-react";
+import { AlignLeft, FolderUp, Lock, Radio, Users } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { FileMeta } from "@shared/types";
 import { ChatPanel } from "./components/ChatPanel.tsx";
 import { ConnectCard } from "./components/ConnectCard.tsx";
+import { DevicesModal } from "./components/DevicesModal.tsx";
 import { FilesPanel } from "./components/FilesPanel.tsx";
 import { SharedText } from "./components/SharedText.tsx";
 import { ThemeToggle } from "./components/ThemeToggle.tsx";
@@ -76,11 +77,12 @@ function TabButton({
 }
 
 export default function App() {
-  const { connected, clientCount } = useSocket();
+  const { connected, clientCount, devices, blocked } = useSocket();
   const { logout } = useAuth();
   const kbInset = useKeyboardInset();
   const [tab, setTab] = useState<Tab>("text");
   const [fileBadge, setFileBadge] = useState(0);
+  const [devicesModalOpen, setDevicesModalOpen] = useState(false);
   const tabRef = useRef<Tab>(tab);
   const keyboardOpen = kbInset > 60;
 
@@ -163,9 +165,16 @@ export default function App() {
                 {connected ? "Connected" : "Offline"}
               </span>
             </span>
-            <span className="hidden text-xs text-quiet dark:text-quiet-dark lg:inline">
-              {deviceLabel}
-            </span>
+            <button
+              type="button"
+              onClick={() => setDevicesModalOpen(true)}
+              className="hidden min-h-11 items-center gap-1.5 rounded-full border border-line bg-panel px-3 text-xs font-medium text-quiet transition hover:border-brand hover:text-ink dark:border-line-dark dark:bg-panel-dark dark:text-quiet-dark dark:hover:border-brand-glow dark:hover:text-ink-dark sm:inline-flex sm:h-8"
+              title="View connected devices, remove or block devices"
+              aria-label={`View connected devices (${deviceLabel})`}
+            >
+              <Users className="size-3.5 text-brand dark:text-brand-glow" />
+              <span>{deviceLabel}</span>
+            </button>
             <ThemeToggle />
             <ResetShareButton />
             <button
@@ -178,9 +187,16 @@ export default function App() {
             </button>
           </div>
         </div>
-        <p className="px-3 pb-2 text-xs text-quiet dark:text-quiet-dark sm:hidden">
-          {deviceLabel}
-        </p>
+        <div className="px-3 pb-2 sm:hidden">
+          <button
+            type="button"
+            onClick={() => setDevicesModalOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-quiet hover:text-brand dark:text-quiet-dark dark:hover:text-brand-glow"
+          >
+            <Users className="size-3.5 text-brand dark:text-brand-glow" />
+            <span>{deviceLabel} (manage)</span>
+          </button>
+        </div>
       </header>
 
       {!connected ? (
@@ -248,6 +264,13 @@ export default function App() {
           />
         </div>
       </nav>
+
+      <DevicesModal
+        isOpen={devicesModalOpen}
+        onClose={() => setDevicesModalOpen(false)}
+        devices={devices}
+        blocked={blocked}
+      />
     </div>
   );
 }
